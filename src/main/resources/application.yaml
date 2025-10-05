@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: gus-distribution
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 15
+      auto-commit: true
+      idle-timeout: 30000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+  data:
+    redis:
+      database: ${REDIS_DATABASE}
+      password: ${REDIS_PASSWORD}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      client-type: lettuce
+      client-name: ${spring.application.name}
+
+# MQ Redis 配置 (独立实例)
+mq:
+  redis:
+    database: ${MQ_REDIS_DATABASE:0}
+    password: ${MQ_REDIS_PASSWORD:${REDIS_PASSWORD}}
+    host: ${MQ_REDIS_HOST:${REDIS_HOST}}
+    port: ${MQ_REDIS_PORT:${REDIS_PORT}}
+    client-type: lettuce
+    client-name: ${spring.application.name}-mq
+
+gus:
+  distribution:
+    aes-key: ${DISTRIBUTION_AES_KEY}
+    payment-url: ${DISTRIBUTION_PAYMENT_URL:http://gus-payment}
+    logistics-url: ${DISTRIBUTION_LOGISTICS_URL:http://gus-logistics}
+    expires-in: ${DISTRIBUTION_TOKEN_EXPIRE:7200}
+    refresh-expires-in: ${DISTRIBUTION_REFRESH_TOKEN_EXPIRE:2592000}
+    private-key: ${DISTRIBUTION_TOKEN_PRIVATE_KEY}
+    iss: ${DISTRIBUTION_TOKEN_ISS:${spring.application.name}}
