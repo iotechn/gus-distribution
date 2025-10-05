@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 
 @Getter
 @Setter
-@TableName("ec_order_refund_item")
+@TableName("ds_order_refund_item")
 @Schema(description = "订单退款项实体")
 public class OrderRefundItemPO extends BasePO {
 

@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 
 @Getter
 @Setter
-@TableName("ec_cart_item_customization")
+@TableName("ds_cart_item_customization")
 @Schema(description = "购物车商品项客制化实体")
 public class CartItemCustomizationPO extends BasePO {
 

@@ -10,7 +10,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@TableName(value = "ec_customizer", autoResultMap = true)
+@TableName(value = "ds_customizer", autoResultMap = true)
 @Schema(description = "客制化实体")
 public class CustomizerPO extends BasePO {
 

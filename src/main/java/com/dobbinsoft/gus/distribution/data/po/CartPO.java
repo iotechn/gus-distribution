@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 
 @Getter
 @Setter
-@TableName("ec_cart")
+@TableName("ds_cart")
 @Schema(description = "购物车实体")
 public class CartPO extends BasePO {
 

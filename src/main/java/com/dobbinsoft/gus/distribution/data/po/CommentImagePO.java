@@ -11,7 +11,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 @Getter
 @Setter
-@TableName("ec_comment_image")
+@TableName("ds_comment_image")
 @Schema(description = "评论图片实体")
 public class CommentImagePO extends BasePO {
 

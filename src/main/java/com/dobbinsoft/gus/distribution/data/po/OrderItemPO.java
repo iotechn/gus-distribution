@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 
 @Getter
 @Setter
-@TableName("ec_order_item")
+@TableName("ds_order_item")
 @Schema(description = "订单商品项实体")
 public class OrderItemPO extends BasePO {
 
