@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
-@TableName("ec_user")
+@TableName("ds_user")
 @Schema(description = "用户实体")
 public class UserPO extends BasePO {
 

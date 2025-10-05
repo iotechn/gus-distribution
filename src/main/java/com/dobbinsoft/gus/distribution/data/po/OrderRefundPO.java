@@ -12,7 +12,7 @@ import java.time.ZonedDateTime;
 
 @Getter
 @Setter
-@TableName("ec_order_refund")
+@TableName("ds_order_refund")
 @Schema(description = "订单退款实体")
 public class OrderRefundPO extends BasePO {
 

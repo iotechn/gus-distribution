@@ -12,7 +12,7 @@ import jakarta.validation.constraints.NotNull;
 
 @Getter
 @Setter
-@TableName("ec_address")
+@TableName("ds_address")
 @Schema(description = "地址实体")
 public class AddressPO extends BasePO {
 

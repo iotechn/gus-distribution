@@ -36,7 +36,7 @@ public class MybatisInterceptorConfig {
 //
 //            @Override
 //            protected List<String> focusOnTables() {
-//                return List.of("ec_file_item");
+//                return List.of("ds_file_item");
 //            }
 //
 //            @Override

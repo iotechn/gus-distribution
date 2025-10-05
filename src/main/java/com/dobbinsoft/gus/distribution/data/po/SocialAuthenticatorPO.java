@@ -11,7 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 
 @Getter
 @Setter
-@TableName(value = "ec_social_authenticator", autoResultMap = true)
+@TableName(value = "ds_social_authenticator", autoResultMap = true)
 @Schema(description = "社交认证器实体")
 public class SocialAuthenticatorPO extends BasePO {
 

@@ -13,7 +13,7 @@ import java.time.ZonedDateTime;
 
 @Getter
 @Setter
-@TableName("ec_order")
+@TableName("ds_order")
 @Schema(description = "订单实体")
 public class OrderPO extends BasePO {
 

@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Max;
 
 @Getter
 @Setter
-@TableName("ec_comment")
+@TableName("ds_comment")
 @Schema(description = "评论实体")
 public class CommentPO extends BasePO {
 

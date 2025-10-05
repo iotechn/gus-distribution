@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 
 @Getter
 @Setter
-@TableName("ec_user_social")
+@TableName("ds_user_social")
 @Schema(description = "用户社交账号关联实体")
 public class UserSocialPO extends BasePO{
 
