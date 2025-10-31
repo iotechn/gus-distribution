@@ -1,7 +1,6 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.dto.customizer.CustomizerCreateDTO;
