@@ -239,9 +239,9 @@ public class OrderServiceImpl implements OrderService {
         createDTO.setOrderNo(orderPO.getOrderNo());
         createDTO.setCurrencyCode(ObjectUtils.firstNonNull(prepayDTO.getCurrencyCode(), CurrencyCode.CNY)); // 默认使用人民币
         createDTO.setAmount(orderPO.getPayAmount());
-        if (sessionInfo.getSrc().equals(UserSrcType.EC_WECHAT_WEB.name())) {
+        if (sessionInfo.getSrc().equals(UserSrcType.DISTRIBUTION_WECHAT_WEB.name())) {
             UserSocialPO userSocialPO = userSocialMapper.selectOne(new LambdaQueryWrapper<UserSocialPO>()
-                    .eq(UserSocialPO::getSrc, UserSrcType.EC_WECHAT_WEB.name())
+                    .eq(UserSocialPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB.name())
                     .eq(UserSocialPO::getUserId, orderPO.getUserId()));
             if (userSocialPO == null) {
                 throw new ServiceException(BasicErrorCode.NO_RESOURCE);

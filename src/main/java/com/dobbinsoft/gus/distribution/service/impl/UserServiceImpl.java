@@ -84,7 +84,7 @@ public class UserServiceImpl implements UserService {
         // 1. 获取微信小程序认证配置
         SocialAuthenticatorPO socialAuthenticatorPO = socialAuthenticatorMapper.selectOne(
                 new LambdaQueryWrapper<SocialAuthenticatorPO>()
-                        .eq(SocialAuthenticatorPO::getSrc, UserSrcType.EC_WECHAT_WEB));
+                        .eq(SocialAuthenticatorPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB));
         if (socialAuthenticatorPO == null) {
             throw new ServiceException(DistributionErrorCode.AUTHENTICATOR_NOT_EXIST);
         }
@@ -101,7 +101,7 @@ public class UserServiceImpl implements UserService {
         
         // 3. 查找已有的社交账号关联
         UserSocialPO userSocialPO = userSocialMapper.selectOne(new LambdaQueryWrapper<UserSocialPO>()
-                .eq(UserSocialPO::getSrc, UserSrcType.EC_WECHAT_WEB)
+                .eq(UserSocialPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB)
                 .eq(UserSocialPO::getSocialId, userWechatMpLoginVO.getOpenid()));
         
         String userId;
@@ -121,7 +121,7 @@ public class UserServiceImpl implements UserService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("uid", userId);
         claims.put("tid", tenantId);
-        claims.put("src", UserSrcType.EC_WECHAT_WEB.getCode());
+        claims.put("src", UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode());
         String token = jwtUtils.generateToken(distributionProperties.getIss(), claims, distributionProperties.getExpiresIn(), distributionProperties.getPrivateKey());
         return generateAuthResult(token, claims);
     }
@@ -142,7 +142,7 @@ public class UserServiceImpl implements UserService {
         // 创建社交账号关联
         UserSocialPO userSocialPO = new UserSocialPO();
         userSocialPO.setUserId(userId);
-        userSocialPO.setSrc(UserSrcType.EC_WECHAT_WEB.getCode());
+        userSocialPO.setSrc(UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode());
         userSocialPO.setSocialId(wechatLoginVO.getOpenid());
         userSocialMapper.insert(userSocialPO);
         
