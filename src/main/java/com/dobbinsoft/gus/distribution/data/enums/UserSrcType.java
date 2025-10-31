@@ -7,8 +7,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum UserSrcType implements BaseEnums<String> {
 
-    EC_WECHAT_WEB("微信WEB"),
-    EC_PASSWORD("邮箱密码注册"),
+    DISTRIBUTION_WECHAT_WEB("微信WEB"),
+    DISTRIBUTION_PASSWORD("邮箱密码注册"),
 
     ;
 

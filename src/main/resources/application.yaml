@@ -38,6 +38,7 @@ gus:
     aes-key: ${DISTRIBUTION_AES_KEY}
     payment-url: ${DISTRIBUTION_PAYMENT_URL:http://gus-payment}
     logistics-url: ${DISTRIBUTION_LOGISTICS_URL:http://gus-logistics}
+    location-url: ${DISTRIBUTION_LOCATION_URL:http://gus-location}
     expires-in: ${DISTRIBUTION_TOKEN_EXPIRE:7200}
     refresh-expires-in: ${DISTRIBUTION_REFRESH_TOKEN_EXPIRE:2592000}
     private-key: ${DISTRIBUTION_TOKEN_PRIVATE_KEY}
