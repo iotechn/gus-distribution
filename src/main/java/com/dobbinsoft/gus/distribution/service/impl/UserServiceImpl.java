@@ -3,6 +3,8 @@ package com.dobbinsoft.gus.distribution.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.context.bo.IdentityContext;
+import com.dobbinsoft.gus.distribution.client.configcenter.ConfigCenterClient;
+import com.dobbinsoft.gus.distribution.client.configcenter.vo.ConfigContentVO;
 import com.dobbinsoft.gus.distribution.client.oauth.WechatMpAuthenticator;
 import com.dobbinsoft.gus.distribution.data.dto.user.UserSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.user.UserStatusUpdateDTO;
@@ -10,7 +12,6 @@ import com.dobbinsoft.gus.distribution.data.dto.user.UserWechatMpLoginDTO;
 import com.dobbinsoft.gus.distribution.data.enums.StatusType;
 import com.dobbinsoft.gus.distribution.data.enums.UserSrcType;
 import com.dobbinsoft.gus.distribution.data.exception.DistributionErrorCode;
-import com.dobbinsoft.gus.distribution.data.po.SocialAuthenticatorPO;
 import com.dobbinsoft.gus.distribution.data.po.UserPO;
 import com.dobbinsoft.gus.distribution.data.po.UserSocialPO;
 import com.dobbinsoft.gus.distribution.data.properties.DistributionProperties;
@@ -21,7 +22,6 @@ import com.dobbinsoft.gus.distribution.data.vo.user.UserWechatMpLoginVO;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.util.StringUtils;
-import com.dobbinsoft.gus.distribution.mapper.SocialAuthenticatorMapper;
 import com.dobbinsoft.gus.distribution.mapper.UserMapper;
 import com.dobbinsoft.gus.distribution.mapper.UserSocialMapper;
 import com.dobbinsoft.gus.distribution.service.UserService;
@@ -42,21 +42,16 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private WechatMpAuthenticator wechatMpAuthenticator;
-
     @Autowired
     private DistributionProperties distributionProperties;
-
-    @Autowired
-    private SocialAuthenticatorMapper socialAuthenticatorMapper;
-
     @Autowired
     private UserMapper userMapper;
-
     @Autowired
     private UserSocialMapper userSocialMapper;
-
     @Autowired
     private JwtUtils jwtUtils;
+    @Autowired
+    private ConfigCenterClient configCenterClient;
 
     @Override
     public UserVO current() {
@@ -81,18 +76,13 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public AuthResultVO wechatMiniLogin(UserWechatMpLoginDTO userWechatMpLoginDTO, String tenantId) {
-        // 1. 获取微信小程序认证配置
-        SocialAuthenticatorPO socialAuthenticatorPO = socialAuthenticatorMapper.selectOne(
-                new LambdaQueryWrapper<SocialAuthenticatorPO>()
-                        .eq(SocialAuthenticatorPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB));
-        if (socialAuthenticatorPO == null) {
-            throw new ServiceException(DistributionErrorCode.AUTHENTICATOR_NOT_EXIST);
-        }
-        
+        // 1. 获取配置
+        ConfigContentVO configContentVO = configCenterClient.getBrandAllConfigContent();
+
         // 2. 调用微信API获取用户信息
         UserWechatMpLoginVO userWechatMpLoginVO = wechatMpAuthenticator.authenticate(
-                socialAuthenticatorPO.getAppId(), 
-                socialAuthenticatorPO.getAppSecret(), 
+                configContentVO.getSecret().getWechatMiniAppId(),
+                configContentVO.getSecret().getWechatMiniSecret(),
                 userWechatMpLoginDTO.getCode(), 
                 "authorization_code");
         if (userWechatMpLoginVO.getErrcode() != null && userWechatMpLoginVO.getErrcode() != 0) {
