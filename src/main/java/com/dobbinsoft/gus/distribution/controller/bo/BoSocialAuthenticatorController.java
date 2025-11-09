@@ -3,7 +3,6 @@ package com.dobbinsoft.gus.distribution.controller.bo;
 import com.dobbinsoft.gus.distribution.data.dto.social.SocialAuthenticatorCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.social.SocialAuthenticatorUpdateDTO;
 import com.dobbinsoft.gus.distribution.data.vo.social.SocialAuthenticatorVO;
-import com.dobbinsoft.gus.distribution.service.SocialAuthenticatorService;
 import com.dobbinsoft.gus.web.vo.R;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

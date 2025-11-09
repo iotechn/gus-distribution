@@ -4,10 +4,13 @@ import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.context.bo.TenantContext;
 import com.dobbinsoft.gus.common.utils.json.JsonUtil;
 import com.dobbinsoft.gus.distribution.client.configcenter.vo.ConfigContentVO;
+import com.dobbinsoft.gus.distribution.data.properties.DistributionProperties;
+import com.dobbinsoft.gus.distribution.utils.AESUtil;
 import com.dobbinsoft.gus.web.exception.BasicErrorCode;
 import com.dobbinsoft.gus.web.exception.ServiceException;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +19,9 @@ import java.time.Duration;
 @Slf4j
 @Component
 public class ConfigCenterClientImpl implements ConfigCenterClient {
+
+    @Autowired
+    private DistributionProperties distributionProperties;
 
     private static final String CONFIG_KEY_PREFIX = "distribution:config:tenant:";
     private static final Duration CACHE_EXPIRE_TIME = Duration.ofDays(30); // 配置缓存30天
@@ -87,22 +93,62 @@ public class ConfigCenterClientImpl implements ConfigCenterClient {
      * 加密secret配置
      */
     private ConfigContentVO encryptSecretConfig(ConfigContentVO config) {
-        // 目前无secret
-        return config;
+        if (config == null || config.getSecret() == null) {
+            return config;
+        }
+
+        try {
+            ConfigContentVO encryptedConfig = JsonUtil.convertValue(JsonUtil.convertToString(config), ConfigContentVO.class);
+            ConfigContentVO.Secret secret = encryptedConfig.getSecret();
+
+            if (secret.getWechatMiniAppId() != null) {
+                secret.setWechatMiniAppId(AESUtil.encrypt(secret.getWechatMiniAppId(), distributionProperties.getAesKey()));
+            }
+            if (secret.getWechatMiniSecret() != null) {
+                secret.setWechatMiniSecret(AESUtil.encrypt(secret.getWechatMiniSecret(), distributionProperties.getAesKey()));
+            }
+
+            return encryptedConfig;
+        } catch (Exception e) {
+            log.error("加密secret配置失败", e);
+            return config; // 加密失败时返回原配置
+        }
     }
 
     /**
      * 解密secret配置
      */
     private ConfigContentVO decryptSecretConfig(ConfigContentVO config) {
-        return config;
+        if (config == null || config.getSecret() == null) {
+            return config;
+        }
+
+        try {
+            ConfigContentVO.Secret secret = config.getSecret();
+
+            if (secret.getWechatMiniAppId() != null) {
+                secret.setWechatMiniAppId(AESUtil.decrypt(secret.getWechatMiniAppId(), distributionProperties.getAesKey()));
+            }
+            if (secret.getWechatMiniSecret() != null) {
+                secret.setWechatMiniSecret(AESUtil.decrypt(secret.getWechatMiniSecret(), distributionProperties.getAesKey()));
+            }
+            return config;
+        } catch (Exception e) {
+            log.error("解密secret配置失败", e);
+            return config; // 解密失败时返回原配置
+        }
     }
+
 
     /**
      * 创建默认配置
      */
     private ConfigContentVO createDefaultConfig() {
         ConfigContentVO config = new ConfigContentVO();
+
+        // 初始化密钥配置
+        config.setSecret(new ConfigContentVO.Secret());
+
         // 文案/图片类默认置空，由上层自行配置
         config.setMpTitle(null);
         config.setWxShareTitle(null);
