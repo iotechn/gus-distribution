@@ -29,4 +29,11 @@ public class OpenCustomizerController {
         return R.success(customizerVO);
     }
 
+    @Operation(summary = "获取第一个页面", description = "获取租户第一个自定义页面详细信息")
+    @GetMapping("/first")
+    public R<CustomizerVO> first() {
+        CustomizerVO customizerVO = customizerService.first();
+        return R.success(customizerVO);
+    }
+
 }

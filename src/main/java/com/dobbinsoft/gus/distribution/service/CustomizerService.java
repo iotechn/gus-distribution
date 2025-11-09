@@ -33,5 +33,9 @@ public interface CustomizerService {
      */
     void delete(String id);
 
+    /**
+     * 获取租户第一个自定义页面
+     */
+    CustomizerVO first();
 
 }
