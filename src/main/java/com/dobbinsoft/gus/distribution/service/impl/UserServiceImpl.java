@@ -11,7 +11,6 @@ import com.dobbinsoft.gus.distribution.data.dto.user.UserStatusUpdateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.user.UserWechatMpLoginDTO;
 import com.dobbinsoft.gus.distribution.data.enums.StatusType;
 import com.dobbinsoft.gus.distribution.data.enums.UserSrcType;
-import com.dobbinsoft.gus.distribution.data.exception.DistributionErrorCode;
 import com.dobbinsoft.gus.distribution.data.po.UserPO;
 import com.dobbinsoft.gus.distribution.data.po.UserSocialPO;
 import com.dobbinsoft.gus.distribution.data.properties.DistributionProperties;
