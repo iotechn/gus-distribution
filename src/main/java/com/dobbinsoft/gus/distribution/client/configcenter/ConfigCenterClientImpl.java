@@ -17,7 +17,7 @@ import java.time.Duration;
 @Component
 public class ConfigCenterClientImpl implements ConfigCenterClient {
 
-    private static final String CONFIG_KEY_PREFIX = "config:tenant:";
+    private static final String CONFIG_KEY_PREFIX = "distribution:config:tenant:";
     private static final Duration CACHE_EXPIRE_TIME = Duration.ofDays(30); // 配置缓存30天
 
     @Resource
