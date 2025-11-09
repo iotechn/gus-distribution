@@ -6,6 +6,7 @@ import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.dto.customizer.CustomizerCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.customizer.CustomizerSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.customizer.CustomizerUpdateDTO;
+import com.dobbinsoft.gus.distribution.data.enums.StatusType;
 import com.dobbinsoft.gus.distribution.data.po.CustomizerPO;
 import com.dobbinsoft.gus.distribution.data.vo.customizer.CustomizerVO;
 import com.dobbinsoft.gus.distribution.mapper.CustomizerMapper;
@@ -116,5 +117,24 @@ public class CustomizerServiceImpl implements CustomizerService {
         
         // 删除自定义页面
         customizerMapper.deleteById(id);
+    }
+
+    @Override
+    public CustomizerVO first() {
+        LambdaQueryWrapper<CustomizerPO> queryWrapper = new LambdaQueryWrapper<>();
+        // 优先查询启用状态的页面
+        queryWrapper.eq(CustomizerPO::getStatus, StatusType.ENABLED.getCode());
+        queryWrapper.last("LIMIT 1");
+        
+        CustomizerPO customizerPO = customizerMapper.selectOne(queryWrapper);
+        
+        if (customizerPO == null) {
+            throw new ServiceException(BasicErrorCode.NO_RESOURCE);
+        }
+        
+        CustomizerVO customizerVO = new CustomizerVO();
+        BeanUtils.copyProperties(customizerPO, customizerVO);
+        
+        return customizerVO;
     }
 }
