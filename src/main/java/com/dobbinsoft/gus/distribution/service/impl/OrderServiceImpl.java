@@ -13,6 +13,7 @@ import com.dobbinsoft.gus.distribution.client.gus.product.ProductStockFeignClien
 import com.dobbinsoft.gus.distribution.client.gus.product.model.BatchStockAdjustDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemSearchDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
+import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.*;
 import com.dobbinsoft.gus.distribution.data.dto.session.FoSessionInfoDTO;
 import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
@@ -135,6 +136,10 @@ public class OrderServiceImpl implements OrderService {
         orderPO.setLogisticsEstimatedPrice(logisticsAmount);
         orderPO.setRemark(submitDTO.getRemark());
 
+        // 构建搜索关键字（冗余商品信息用于搜索）
+        String searchKeyword = buildSearchKeyword(orderItemInfos);
+        orderPO.setSearchKeyword(searchKeyword);
+
         // 设置收货地址
         OrderPO.Address orderAddress = new OrderPO.Address();
         orderAddress.setUserName(addressPO.getUserName());
@@ -153,7 +158,7 @@ public class OrderServiceImpl implements OrderService {
         for (OrderItemInfo itemInfo : orderItemInfos) {
             OrderItemPO orderItemPO = new OrderItemPO();
             orderItemPO.setId(UuidWorker.nextId());
-            orderItemPO.setOrderId(Long.valueOf(orderPO.getId()));
+            orderItemPO.setOrderId(orderPO.getId());
             orderItemPO.setItemName(itemInfo.getItemName());
             orderItemPO.setSkuName(itemInfo.getSkuName());
             orderItemPO.setSmc(itemInfo.getSmc());
@@ -911,6 +916,65 @@ public class OrderServiceImpl implements OrderService {
         log.info("用户取消退款成功: userId={}, refundId={}", sessionInfo.getUserId(), refundId);
     }
 
+    @Override
+    public PageResult<OrderListVO> getUserOrders(FoOrderSearchDTO searchDTO) {
+        // 获取当前登录用户ID
+        FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
+        String userId = sessionInfo.getUserId();
+
+        Page<OrderPO> page = new Page<>(searchDTO.getPageNum(), searchDTO.getPageSize());
+        
+        LambdaQueryWrapper<OrderPO> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 必须过滤当前用户的订单
+        queryWrapper.eq(OrderPO::getUserId, userId);
+
+        // 订单状态过滤
+        if (searchDTO.getStatus() != null) {
+            queryWrapper.eq(OrderPO::getStatus, searchDTO.getStatus());
+        }
+
+        // 下单时间范围过滤（使用 createdTime）
+        if (searchDTO.getCreateTimeStart() != null) {
+            queryWrapper.ge(OrderPO::getCreatedTime, searchDTO.getCreateTimeStart());
+        }
+        if (searchDTO.getCreateTimeEnd() != null) {
+            queryWrapper.le(OrderPO::getCreatedTime, searchDTO.getCreateTimeEnd());
+        }
+
+        // 关键字搜索（订单号或搜索关键字字段）
+        if (StringUtils.hasText(searchDTO.getKeyword())) {
+            String keyword = searchDTO.getKeyword().trim();
+            
+            // 搜索订单号或搜索关键字字段（searchKeyword 包含商品名、SMC、SKU等信息）
+            queryWrapper.and(wrapper -> wrapper
+                    .like(OrderPO::getOrderNo, keyword)
+                    .or()
+                    .like(OrderPO::getSearchKeyword, keyword)
+            );
+        }
+        
+        // 按创建时间倒序排列
+        queryWrapper.orderByDesc(OrderPO::getCreatedTime);
+        
+        Page<OrderPO> resultPage = orderMapper.selectPage(page, queryWrapper);
+        
+        List<OrderListVO> voList = new ArrayList<>();
+        for (OrderPO po : resultPage.getRecords()) {
+            OrderListVO vo = convertToOrderListVO(po);
+            voList.add(vo);
+        }
+
+        return PageResult.<OrderListVO>builder()
+                .totalCount(resultPage.getTotal())
+                .totalPages(resultPage.getPages())
+                .pageNumber((int) resultPage.getCurrent())
+                .pageSize((int) resultPage.getSize())
+                .hasMore(resultPage.hasNext())
+                .data(voList)
+                .build();
+    }
+
     /**
      * 生成退款单号
      */
@@ -997,7 +1061,7 @@ public class OrderServiceImpl implements OrderService {
         listVO.setLogisticsCompany(orderPO.getLogisticsCompany());
         listVO.setLogisticsNo(orderPO.getLogisticsNo());
         listVO.setLogisticsEstimatedPrice(orderPO.getLogisticsEstimatedPrice());
-        listVO.setCreateTime(ZonedDateTime.now()); // 临时设置，实际应该从orderPO获取
+        listVO.setCreateTime(orderPO.getCreatedTime());
         listVO.setDeliveryTime(orderPO.getExpressTime());
         listVO.setConfirmTime(orderPO.getConfirmTime());
 
@@ -1092,6 +1156,45 @@ public class OrderServiceImpl implements OrderService {
         detailVO.setRefunds(new ArrayList<>());
 
         return detailVO;
+    }
+
+    /**
+     * 构建搜索关键字
+     * 将所有商品的相关信息（商品名、SMC、SKU、SKU名称、分类名称等）拼接后用于搜索
+     * @param orderItemInfos 订单商品信息列表
+     * @return 搜索关键字字符串
+     */
+    private String buildSearchKeyword(List<OrderItemInfo> orderItemInfos) {
+        if (CollectionUtils.isEmpty(orderItemInfos)) {
+            return "";
+        }
+        
+        Set<String> keywords = new HashSet<>();
+        for (OrderItemInfo itemInfo : orderItemInfos) {
+            // 添加商品名称
+            if (StringUtils.hasText(itemInfo.getItemName())) {
+                keywords.add(itemInfo.getItemName());
+            }
+            // 添加SMC
+            if (StringUtils.hasText(itemInfo.getSmc())) {
+                keywords.add(itemInfo.getSmc());
+            }
+            // 添加SKU
+            if (StringUtils.hasText(itemInfo.getSku())) {
+                keywords.add(itemInfo.getSku());
+            }
+            // 添加SKU名称
+            if (StringUtils.hasText(itemInfo.getSkuName())) {
+                keywords.add(itemInfo.getSkuName());
+            }
+            // 添加分类名称
+            if (StringUtils.hasText(itemInfo.getCategoryName())) {
+                keywords.add(itemInfo.getCategoryName());
+            }
+        }
+        
+        // 使用空格连接所有关键字
+        return String.join(" ", keywords);
     }
 
     /**

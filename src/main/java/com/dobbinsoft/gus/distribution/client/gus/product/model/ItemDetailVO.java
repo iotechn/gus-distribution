@@ -23,7 +23,7 @@ public class ItemDetailVO extends ItemVO {
     @Schema(description = "Item Specification VO")
     public static class ItemSpecificationVO {
         @Schema(description = "Specification ID")
-        private Long id;
+        private String id;
 
         @Schema(description = "Image URL")
         private String imageUrl;
@@ -41,7 +41,7 @@ public class ItemDetailVO extends ItemVO {
     @Schema(description = "Item Specification Value VO")
     public static class ItemSpecificationValueVO {
         @Schema(description = "Value ID")
-        private Long id;
+        private String id;
 
         @Schema(description = "Value name")
         private String name;
