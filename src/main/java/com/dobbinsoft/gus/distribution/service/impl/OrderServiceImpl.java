@@ -158,7 +158,7 @@ public class OrderServiceImpl implements OrderService {
         for (OrderItemInfo itemInfo : orderItemInfos) {
             OrderItemPO orderItemPO = new OrderItemPO();
             orderItemPO.setId(UuidWorker.nextId());
-            orderItemPO.setOrderId(Long.valueOf(orderPO.getId()));
+            orderItemPO.setOrderId(orderPO.getId());
             orderItemPO.setItemName(itemInfo.getItemName());
             orderItemPO.setSkuName(itemInfo.getSkuName());
             orderItemPO.setSmc(itemInfo.getSmc());
