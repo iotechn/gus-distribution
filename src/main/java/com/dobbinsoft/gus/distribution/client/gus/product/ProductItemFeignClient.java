@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "gus-product-item", url = "http://gus-product", path = "/api/item")
+@FeignClient(name = "gus-product-item", url = "${gus.distribution.product-url}", path = "/api/item")
 public interface ProductItemFeignClient {
 
     @PostMapping("/search")

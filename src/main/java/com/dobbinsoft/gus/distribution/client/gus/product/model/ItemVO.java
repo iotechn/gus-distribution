@@ -13,7 +13,7 @@ import java.util.List;
 public class ItemVO {
 
     @Schema(description = "Item ID")
-    private Long id;
+    private String id;
 
     @Schema(description = "SMC")
     private String smc;

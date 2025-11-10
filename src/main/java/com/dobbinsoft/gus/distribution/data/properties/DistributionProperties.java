@@ -17,6 +17,21 @@ public class DistributionProperties {
     private String paymentUrl;
 
     /**
+     * logistics endpoint
+     */
+    private String logisticsUrl;
+
+    /**
+     * location endpoint
+     */
+    private String locationUrl;
+
+    /**
+     * product endpoint
+     */
+    private String productUrl;
+
+    /**
      * 用于对数据库敏感字段进行加密/解密
      */
     private String aesKey;
