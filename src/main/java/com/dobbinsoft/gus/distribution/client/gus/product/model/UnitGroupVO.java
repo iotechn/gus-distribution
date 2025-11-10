@@ -10,7 +10,7 @@ import java.util.List;
 @Setter
 public class UnitGroupVO {
 
-    private Long id;
+    private String id;
     private String name;
     private List<UnitVO> units;
 

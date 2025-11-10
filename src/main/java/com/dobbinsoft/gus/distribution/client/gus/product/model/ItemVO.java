@@ -56,12 +56,12 @@ public class ItemVO {
     @Schema(description = "Item Category")
     public static class ItemCategory {
         @Schema(description = "Category ID")
-        private Long id;
+        private String id;
 
         @Schema(description = "Category name")
         private String name;
 
-        public ItemCategory(Long id, String name) {
+        public ItemCategory(String id, String name) {
             this.id = id;
             this.name = name;
         }
@@ -72,7 +72,7 @@ public class ItemVO {
     @Schema(description = "Item SKU VO")
     public static class ItemSkuVO {
         @Schema(description = "SKU ID")
-        private Long id;
+        private String id;
 
         @Schema(description = "SKU code")
         private String sku;

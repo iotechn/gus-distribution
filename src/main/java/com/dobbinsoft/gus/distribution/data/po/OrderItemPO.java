@@ -17,8 +17,8 @@ import java.math.BigDecimal;
 public class OrderItemPO extends BasePO {
 
     @Schema(description = "订单ID")
-    @NotNull(message = "订单ID不能为空")
-    private Long orderId;
+    @NotBlank(message = "订单ID不能为空")
+    private String orderId;
 
     @Schema(description = "SMC 名称")
     @NotBlank(message = "商品名称不能为空")

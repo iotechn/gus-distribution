@@ -80,6 +80,9 @@ public class OrderPO extends BasePO {
     @Schema(description = "内部备注")
     private String innerRemark;
 
+    @Schema(description = "搜索关键字（冗余字段，用于搜索商品名、SMC、SKU等信息）")
+    private String searchKeyword;
+
     @Getter
     @Setter
     @Schema(description = "收货地址信息")

@@ -2,10 +2,7 @@ package com.dobbinsoft.gus.distribution.data.dto.order;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,9 +14,8 @@ import java.util.List;
 public class OrderSubmitDTO {
 
     @Schema(description = "收货地址ID", example = "123456")
-    @NotNull(message = "收货地址ID不能为空")
-    @Positive(message = "收货地址ID必须为正数")
-    private Long addressId;
+    @NotBlank(message = "收货地址ID不能为空")
+    private String addressId;
 
     @Schema(description = "订单备注", example = "请尽快发货")
     @Size(max = 500, message = "订单备注长度不能超过500个字符")

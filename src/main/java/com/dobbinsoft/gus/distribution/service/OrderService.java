@@ -1,6 +1,7 @@
 package com.dobbinsoft.gus.distribution.service;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderExpressDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderPrepayDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
@@ -106,6 +107,15 @@ public interface OrderService {
      * @param refundId 退款单ID
      */
     void cancelRefund(String refundId);
+
+    // ========== 前台订单查询接口 ==========
+
+    /**
+     * 获取当前登录用户的订单列表
+     * @param searchDTO 搜索条件
+     * @return 订单分页结果
+     */
+    PageResult<OrderListVO> getUserOrders(FoOrderSearchDTO searchDTO);
 
     // ========== 支付回调接口 ==========
 

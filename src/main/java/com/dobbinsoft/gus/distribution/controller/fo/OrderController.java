@@ -1,10 +1,13 @@
 package com.dobbinsoft.gus.distribution.controller.fo;
 
+import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
 import com.dobbinsoft.gus.web.vo.R;
+import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderPrepayDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApplyDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSubmitDTO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderPrepayVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundVO;
@@ -30,6 +33,20 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+
+    @PostMapping("/list")
+    @Operation(summary = "查询订单列表", description = "查询当前登录用户的订单列表，支持状态过滤、下单时间范围、关键字搜索")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "查询成功", 
+            content = @Content(schema = @Schema(implementation = OrderListVO.class))),
+        @ApiResponse(responseCode = "401", description = "用户未登录")
+    })
+    public R<PageResult<OrderListVO>> list(
+            @Parameter(description = "搜索条件", required = true)
+            @Valid @RequestBody FoOrderSearchDTO searchDTO) {
+        PageResult<OrderListVO> result = orderService.getUserOrders(searchDTO);
+        return R.success(result);
+    }
 
     @PostMapping("/preview")
     @Operation(summary = "订单预览", description = "预览订单信息，包括商品总价、折扣金额、物流费用等")
