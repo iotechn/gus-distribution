@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "gus-product-stock", url = "http://gus-product", path = "/api/stock")
+@FeignClient(name = "gus-product-stock", url = "${gus.distribution.product-url}", path = "/api/stock")
 public interface ProductStockFeignClient {
 
     @GetMapping("/item/{smc}")
