@@ -2,15 +2,28 @@ package com.dobbinsoft.gus.distribution.service.impl;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.client.gus.product.ProductItemFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.product.ProductStockFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemSearchDTO;
+import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemStockVO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
+import com.dobbinsoft.gus.distribution.client.gus.product.model.ListStockVO;
 import com.dobbinsoft.gus.distribution.service.ItemService;
+import com.dobbinsoft.gus.distribution.data.vo.item.ItemWithStockVO;
 import com.dobbinsoft.gus.web.exception.BasicErrorCode;
 import com.dobbinsoft.gus.web.exception.ServiceException;
 import com.dobbinsoft.gus.web.vo.R;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -19,31 +32,111 @@ public class ItemServiceImpl implements ItemService {
     @Autowired
     private ProductItemFeignClient productItemFeignClient;
 
+    @Autowired
+    private ProductStockFeignClient productStockFeignClient;
+
     @Override
-    public PageResult<ItemVO> search(ItemSearchDTO searchDTO) {
+    public PageResult<ItemWithStockVO> search(ItemSearchDTO searchDTO, String locationCode) {
         R<PageResult<ItemVO>> result = productItemFeignClient.search(searchDTO);
         if (!BasicErrorCode.SUCCESS.getCode().equals(result.getCode())) {
             throw new ServiceException(result.getCode(), result.getMessage());
         }
-        return result.getData();
+        PageResult<ItemVO> pageResult = result.getData();
+        if (pageResult == null) {
+            PageResult<ItemWithStockVO> emptyResult = new PageResult<>();
+            emptyResult.setData(Collections.emptyList());
+            emptyResult.setHasMore(Boolean.FALSE);
+            emptyResult.setPageNumber(0);
+            emptyResult.setPageSize(0);
+            emptyResult.setTotalCount(0);
+            emptyResult.setTotalPages(0);
+            return emptyResult;
+        }
+        PageResult<ItemWithStockVO> converted = new PageResult<>();
+        converted.setTotalCount(pageResult.getTotalCount());
+        converted.setTotalPages(pageResult.getTotalPages());
+        converted.setPageNumber(pageResult.getPageNumber());
+        converted.setPageSize(pageResult.getPageSize());
+        converted.setHasMore(pageResult.getHasMore());
+        if (CollectionUtils.isEmpty(pageResult.getData())) {
+            converted.setData(Collections.emptyList());
+            return converted;
+        }
+        converted.setData(pageResult.getData().stream()
+                .map(item -> buildItemWithStock(item, locationCode))
+                .collect(Collectors.toList()));
+        return converted;
     }
 
     @Override
-    public ItemVO getBySmc(String smc) {
+    public ItemWithStockVO getBySmc(String smc, String locationCode) {
         R<ItemVO> result = productItemFeignClient.getBySmc(smc);
         if (!BasicErrorCode.SUCCESS.getCode().equals(result.getCode())) {
             throw new ServiceException(result.getCode(), result.getMessage());
         }
-        return result.getData();
+        ItemVO itemVO = result.getData();
+        if (itemVO == null) {
+            return null;
+        }
+        return buildItemWithStock(itemVO, locationCode);
     }
 
     @Override
-    public ItemVO getBySku(String sku) {
+    public ItemWithStockVO getBySku(String sku, String locationCode) {
         R<ItemVO> result = productItemFeignClient.getBySku(sku);
         if (!BasicErrorCode.SUCCESS.getCode().equals(result.getCode())) {
             throw new ServiceException(result.getCode(), result.getMessage());
         }
-        return result.getData();
+        ItemVO itemVO = result.getData();
+        if (itemVO == null) {
+            return null;
+        }
+        return buildItemWithStock(itemVO, locationCode);
+    }
+
+    private ItemWithStockVO buildItemWithStock(ItemVO itemVO, String locationCode) {
+        ItemWithStockVO target = new ItemWithStockVO();
+        BeanUtils.copyProperties(itemVO, target);
+        if (!StringUtils.hasText(locationCode) || !StringUtils.hasText(itemVO.getSmc())) {
+            return target;
+        }
+        target.setLocationCode(locationCode);
+        R<ItemStockVO> stockResult = productStockFeignClient.itemStock(itemVO.getSmc());
+        if (!BasicErrorCode.SUCCESS.getCode().equals(stockResult.getCode())) {
+            throw new ServiceException(stockResult.getCode(), stockResult.getMessage());
+        }
+        ItemStockVO itemStockVO = stockResult.getData();
+        if (itemStockVO == null || CollectionUtils.isEmpty(itemStockVO.getStocks())) {
+            return target;
+        }
+        List<ItemWithStockVO.LocationStock> locationStockList = itemStockVO.getStocks().stream()
+                .filter(stock -> locationCode.equals(stock.getLocationCode()))
+                .map(this::convertStock)
+                .collect(Collectors.toList());
+        target.setLocationStocks(locationStockList);
+        target.setMinPrice(locationStockList.stream()
+                .map(ItemWithStockVO.LocationStock::getPrice)
+                .filter(Objects::nonNull)
+                .min(BigDecimal::compareTo)
+                .orElse(null));
+        target.setMaxPrice(locationStockList.stream()
+                .map(ItemWithStockVO.LocationStock::getPrice)
+                .filter(Objects::nonNull)
+                .max(BigDecimal::compareTo)
+                .orElse(null));
+        return target;
+    }
+
+    private ItemWithStockVO.LocationStock convertStock(ListStockVO stockVO) {
+        ItemWithStockVO.LocationStock locationStock = new ItemWithStockVO.LocationStock();
+        locationStock.setSku(stockVO.getSku());
+        locationStock.setLocationCode(stockVO.getLocationCode());
+        locationStock.setPrice(stockVO.getPrice());
+        locationStock.setQuantity(stockVO.getQuantity());
+        locationStock.setCurrencyCode(stockVO.getCurrencyCode());
+        locationStock.setLocationSku(stockVO.getLocationSku());
+        locationStock.setSmc(stockVO.getSmc());
+        return locationStock;
     }
 }
 
