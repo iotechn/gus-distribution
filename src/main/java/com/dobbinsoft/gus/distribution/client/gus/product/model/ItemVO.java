@@ -61,6 +61,9 @@ public class ItemVO {
         @Schema(description = "Category name")
         private String name;
 
+        public ItemCategory() {
+        }
+
         public ItemCategory(String id, String name) {
             this.id = id;
             this.name = name;

@@ -771,8 +771,8 @@ public class OrderServiceImpl implements OrderService {
             // 查询订单商品项
             OrderItemPO orderItemPO = orderItemMapper.selectOne(
                     new LambdaQueryWrapper<OrderItemPO>()
-                            .eq(OrderItemPO::getId, Long.valueOf(itemDTO.getOrderItemId()))
-                            .eq(OrderItemPO::getOrderId, Long.valueOf(orderPO.getId())));
+                            .eq(OrderItemPO::getId, itemDTO.getOrderItemId())
+                            .eq(OrderItemPO::getOrderId, orderPO.getId()));
             if (orderItemPO == null) {
                 throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单商品项不存在: " + itemDTO.getOrderItemId());
             }
