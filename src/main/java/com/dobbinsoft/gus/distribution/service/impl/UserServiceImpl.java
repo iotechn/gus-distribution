@@ -89,9 +89,11 @@ public class UserServiceImpl implements UserService {
         }
         
         // 3. 查找已有的社交账号关联
-        UserSocialPO userSocialPO = userSocialMapper.selectOne(new LambdaQueryWrapper<UserSocialPO>()
-                .eq(UserSocialPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB)
-                .eq(UserSocialPO::getSocialId, userWechatMpLoginVO.getOpenid()));
+        List<UserSocialPO> matches = userSocialMapper.selectList(new LambdaQueryWrapper<UserSocialPO>()
+                .eq(UserSocialPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode())
+                .eq(UserSocialPO::getSocialId, userWechatMpLoginVO.getOpenid())
+                .last("limit 1"));
+        UserSocialPO userSocialPO = matches.isEmpty() ? null : matches.get(0);
         
         String userId;
         if (userSocialPO == null) {
