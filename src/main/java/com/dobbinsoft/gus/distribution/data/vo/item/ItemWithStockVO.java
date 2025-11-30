@@ -1,5 +1,6 @@
 package com.dobbinsoft.gus.distribution.data.vo.item;
 
+import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemDetailVO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
 import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -12,7 +13,7 @@ import java.util.List;
 @Getter
 @Setter
 @Schema(description = "带有库存信息的商品 VO")
-public class ItemWithStockVO extends ItemVO {
+public class ItemWithStockVO extends ItemDetailVO {
 
     @Schema(description = "请求携带的仓库编码")
     private String locationCode;

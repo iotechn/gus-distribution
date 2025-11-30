@@ -15,6 +15,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -42,8 +43,7 @@ public class OpenConfigServiceImpl implements OpenConfigService {
         LocationVO.Type type = Boolean.TRUE.equals(publicVO.getEnableVirtualLocation()) ? LocationVO.Type.VIRTUAL : null;
 
         // 分页拉取，单页200
-        new java.util.ArrayList<>();
-        List<LocationVO> all = new java.util.ArrayList<>();
+        List<LocationVO> all = new ArrayList<>();
         int pageNum = 1;
         while (true) {
             R<PageResult<LocationVO>> response = locationFeignClient.page(pageNum, PAGE_SIZE, status, type);

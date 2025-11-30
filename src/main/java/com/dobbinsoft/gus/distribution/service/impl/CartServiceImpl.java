@@ -69,7 +69,7 @@ public class CartServiceImpl implements CartService {
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
         // 验证商品信息
-        R<ItemVO> itemResult = productItemFeignClient.getBySmc(addCartItemDTO.getSmc());
+        R<ItemDetailVO> itemResult = productItemFeignClient.getBySmc(addCartItemDTO.getSmc());
         if (!BasicErrorCode.SUCCESS.getCode().equals(itemResult.getCode())
                 || itemResult.getData() == null
                 || itemResult.getData().getStatus() == ItemStatus.DISABLED) {
@@ -77,16 +77,16 @@ public class CartServiceImpl implements CartService {
             throw new ServiceException(DistributionErrorCode.ITEM_NOT_FOUND);
         }
 
-        ItemVO itemVO = itemResult.getData();
+        ItemDetailVO itemDetailVO = itemResult.getData();
         // 验证SKU是否存在
-        boolean skuExists = itemVO.getSkus().stream()
+        boolean skuExists = itemDetailVO.getSkus().stream()
                 .anyMatch(sku -> sku.getSku().equals(addCartItemDTO.getSku()));
         if (!skuExists) {
             throw new ServiceException(DistributionErrorCode.INVALID_SKU);
         }
 
         // 获取库存价格
-        R<ItemStockVO> itemStockVO = productStockFeignClient.itemStock(itemVO.getSmc());
+        R<ItemStockVO> itemStockVO = productStockFeignClient.itemStock(itemDetailVO.getSmc());
         if (!BasicErrorCode.SUCCESS.getCode().equals(itemStockVO.getCode()) || itemStockVO.getData() == null || itemStockVO.getData().getStocks() == null) {
             throw new ServiceException(DistributionErrorCode.ITEM_NOT_FOUND);
         }

@@ -25,27 +25,6 @@ public class MybatisInterceptorConfig {
         return tenantLineInnerInterceptor;
     }
 
-//   后续可用于session同步等操作
-//    @Bean
-//    public DataChangeRecorderInnerInterceptor dataChangeRecorderInnerInterceptor() {
-//        return new DataChangeRecorderInnerInterceptor() {
-//            @Override
-//            protected List<SqlCommandType> focusOnMethods() {
-//                return List.of(SqlCommandType.UPDATE, SqlCommandType.INSERT);
-//            }
-//
-//            @Override
-//            protected List<String> focusOnTables() {
-//                return List.of("ds_file_item");
-//            }
-//
-//            @Override
-//            protected void dealOperationResult(OperationResult operationResult) {
-//                System.out.println(operationResult);
-//            }
-//        };
-//    }
-
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor(TenantLineInnerInterceptor tenantLineInnerInterceptor) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
