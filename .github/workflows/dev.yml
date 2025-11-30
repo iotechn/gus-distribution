@@ -19,11 +19,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
         with:
           java-version: '21'
-          distribution: 'temurin'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cache Maven packages
         uses: actions/cache@v3
@@ -163,11 +164,16 @@ jobs:
           </settings>
           EOF
 
-      # build to jar
+      # build to native
       - name: Build with Maven
         run: |
-          mvn package
+          mvn -Pnative native:compile
           ls
+
+      # build to jar
+#      - name: Build with Maven
+#        run: |
+#          mvn package
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

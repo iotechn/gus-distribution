@@ -3,12 +3,9 @@ package com.dobbinsoft.gus.distribution.service.impl;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.client.gus.product.ProductItemFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.product.ProductStockFeignClient;
-import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemSearchDTO;
-import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemStockVO;
-import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
-import com.dobbinsoft.gus.distribution.client.gus.product.model.ListStockVO;
-import com.dobbinsoft.gus.distribution.service.ItemService;
+import com.dobbinsoft.gus.distribution.client.gus.product.model.*;
 import com.dobbinsoft.gus.distribution.data.vo.item.ItemWithStockVO;
+import com.dobbinsoft.gus.distribution.service.ItemService;
 import com.dobbinsoft.gus.web.exception.BasicErrorCode;
 import com.dobbinsoft.gus.web.exception.ServiceException;
 import com.dobbinsoft.gus.web.vo.R;
@@ -70,30 +67,36 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     public ItemWithStockVO getBySmc(String smc, String locationCode) {
-        R<ItemVO> result = productItemFeignClient.getBySmc(smc);
+        R<ItemDetailVO> result = productItemFeignClient.getBySmc(smc);
         if (!BasicErrorCode.SUCCESS.getCode().equals(result.getCode())) {
             throw new ServiceException(result.getCode(), result.getMessage());
         }
-        ItemVO itemVO = result.getData();
-        if (itemVO == null) {
+        ItemDetailVO itemDetailVO = result.getData();
+        if (itemDetailVO == null) {
             return null;
         }
-        return buildItemWithStock(itemVO, locationCode);
+        return buildItemWithStock(itemDetailVO, locationCode);
     }
 
     @Override
     public ItemWithStockVO getBySku(String sku, String locationCode) {
-        R<ItemVO> result = productItemFeignClient.getBySku(sku);
+        R<ItemDetailVO> result = productItemFeignClient.getBySku(sku);
         if (!BasicErrorCode.SUCCESS.getCode().equals(result.getCode())) {
             throw new ServiceException(result.getCode(), result.getMessage());
         }
-        ItemVO itemVO = result.getData();
-        if (itemVO == null) {
+        ItemDetailVO itemDetailVO = result.getData();
+        if (itemDetailVO == null) {
             return null;
         }
-        return buildItemWithStock(itemVO, locationCode);
+        return buildItemWithStock(itemDetailVO, locationCode);
     }
 
+    /**
+     *
+     * @param itemVO 传入如果是 ItemVO 则 ItemWithStockVO只有 itemVo的属性 + Stock
+     * @param locationCode
+     * @return
+     */
     private ItemWithStockVO buildItemWithStock(ItemVO itemVO, String locationCode) {
         ItemWithStockVO target = new ItemWithStockVO();
         BeanUtils.copyProperties(itemVO, target);

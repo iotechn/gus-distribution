@@ -1,6 +1,7 @@
 package com.dobbinsoft.gus.distribution.client.gus.product;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemDetailVO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemIncreaseSalesDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemSearchDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
@@ -16,12 +17,12 @@ public interface ProductItemFeignClient {
     R<PageResult<ItemVO>> search(@Valid @RequestBody ItemSearchDTO searchDTO);
 
     @GetMapping("/smc/{smc}")
-    R<ItemVO> getBySmc(@PathVariable String smc);
+    R<ItemDetailVO> getBySmc(@PathVariable String smc);
 
     @GetMapping("/sku/{sku}")
-    R<ItemVO> getBySku(@PathVariable String sku);
+    R<ItemDetailVO> getBySku(@PathVariable String sku);
 
     @PutMapping("/smc/{smc}/sales/increase")
-    public R<Void> increaseSalesVolume(@PathVariable String smc, @Valid @RequestBody ItemIncreaseSalesDTO increaseSalesDTO);
+    R<Void> increaseSalesVolume(@PathVariable String smc, @Valid @RequestBody ItemIncreaseSalesDTO increaseSalesDTO);
 
 }
