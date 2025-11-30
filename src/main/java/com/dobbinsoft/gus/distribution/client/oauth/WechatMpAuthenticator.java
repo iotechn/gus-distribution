@@ -59,18 +59,10 @@ public class WechatMpAuthenticator {
             }
 
             // 使用JsonUtil手动反序列化
-            UserWechatMpLoginVO result;
-            try {
-                result = JsonUtil.convertValue(responseBody, UserWechatMpLoginVO.class);
-                if (result == null) {
-                    log.error("反序列化结果为空，响应体: {}", responseBody);
-                    throw new RuntimeException("反序列化结果为空");
-                }
-                log.info("微信API响应反序列化成功，openid: {}, errcode: {}, errmsg: {}", 
-                        result.getOpenid(), result.getErrcode(), result.getErrmsg());
-            } catch (Exception e) {
-                log.error("微信API响应反序列化失败，响应体: {}, 错误: {}", responseBody, e.getMessage(), e);
-                throw new RuntimeException("微信API响应反序列化失败: " + e.getMessage(), e);
+            UserWechatMpLoginVO result = JsonUtil.convertValue(responseBody, UserWechatMpLoginVO.class);
+            if (result == null) {
+                log.error("反序列化结果为空，响应体: {}", responseBody);
+                throw new RuntimeException("反序列化结果为空");
             }
 
             // 如果返回错误码，记录日志但不抛出异常（由调用方处理）
