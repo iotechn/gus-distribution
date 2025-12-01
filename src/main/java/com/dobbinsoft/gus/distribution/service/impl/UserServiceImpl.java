@@ -1,6 +1,7 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.context.bo.IdentityContext;
 import com.dobbinsoft.gus.distribution.client.configcenter.ConfigCenterClient;
@@ -89,11 +90,11 @@ public class UserServiceImpl implements UserService {
         }
         
         // 3. 查找已有的社交账号关联
-        List<UserSocialPO> matches = userSocialMapper.selectList(new LambdaQueryWrapper<UserSocialPO>()
-                .eq(UserSocialPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode())
-                .eq(UserSocialPO::getSocialId, userWechatMpLoginVO.getOpenid())
+        List<UserSocialPO> matches = userSocialMapper.selectList(new QueryWrapper<UserSocialPO>()
+                .eq("src", UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode())
+                .eq("social_id", userWechatMpLoginVO.getOpenid())
                 .last("limit 1"));
-        UserSocialPO userSocialPO = matches.isEmpty() ? null : matches.get(0);
+        UserSocialPO userSocialPO = matches.isEmpty() ? null : matches.getFirst();
         
         String userId;
         if (userSocialPO == null) {
