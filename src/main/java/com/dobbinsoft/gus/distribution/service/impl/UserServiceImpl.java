@@ -2,6 +2,8 @@ package com.dobbinsoft.gus.distribution.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.context.bo.IdentityContext;
 import com.dobbinsoft.gus.distribution.client.configcenter.ConfigCenterClient;
@@ -19,9 +21,6 @@ import com.dobbinsoft.gus.distribution.data.util.JwtUtils;
 import com.dobbinsoft.gus.distribution.data.vo.user.AuthResultVO;
 import com.dobbinsoft.gus.distribution.data.vo.user.UserVO;
 import com.dobbinsoft.gus.distribution.data.vo.user.UserWechatMpLoginVO;
-import com.dobbinsoft.gus.common.model.vo.PageResult;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.util.StringUtils;
 import com.dobbinsoft.gus.distribution.mapper.UserMapper;
 import com.dobbinsoft.gus.distribution.mapper.UserSocialMapper;
 import com.dobbinsoft.gus.distribution.service.UserService;
@@ -31,6 +30,7 @@ import com.dobbinsoft.gus.web.exception.ServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -90,11 +90,11 @@ public class UserServiceImpl implements UserService {
         }
         
         // 3. 查找已有的社交账号关联
-        List<UserSocialPO> matches = userSocialMapper.selectList(new QueryWrapper<UserSocialPO>()
-                .eq("src", UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode())
-                .eq("social_id", userWechatMpLoginVO.getOpenid())
+        List<UserSocialPO> matches = userSocialMapper.selectList(new LambdaQueryWrapper<UserSocialPO>()
+                .eq(UserSocialPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode())
+                .eq(UserSocialPO::getSocialId, userWechatMpLoginVO.getOpenid())
                 .last("limit 1"));
-        UserSocialPO userSocialPO = matches.isEmpty() ? null : matches.getFirst();
+        UserSocialPO userSocialPO = matches.isEmpty() ? null : matches.get(0);
         
         String userId;
         if (userSocialPO == null) {
@@ -146,13 +146,12 @@ public class UserServiceImpl implements UserService {
      */
     private void updateUserLastLogin(String userId) {
         UserPO userUpdate = new UserPO();
-        userUpdate.setId(userId);
         userUpdate.setLastLoginTime(LocalDateTime.now());
         // 这里可以根据需要设置IP地址，从请求上下文中获取
         GenericRequestContextHolder.getTraceContext().ifPresent(traceContext -> {
             userUpdate.setLastLoginIp(traceContext.getIp());
         });
-        userMapper.updateById(userUpdate);
+        userMapper.update(userUpdate, new QueryWrapper<UserPO>().eq("id", userId));
     }
 
     /**
