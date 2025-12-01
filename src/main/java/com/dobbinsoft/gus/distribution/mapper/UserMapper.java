@@ -1,9 +1,10 @@
 package com.dobbinsoft.gus.distribution.mapper;
 
-import com.dobbinsoft.gus.distribution.data.IMapper;
 import com.dobbinsoft.gus.distribution.data.po.UserPO;
-import org.apache.ibatis.annotations.Mapper;
+import com.dobbinsoft.gus.distribution.mapper.mybatis.MybatisUserMapper;
+import org.springframework.stereotype.Component;
 
-@Mapper
-public interface UserMapper extends IMapper<UserPO> {
+@Component
+public class UserMapper extends MapperAdapter<MybatisUserMapper, UserPO> {
 }
+

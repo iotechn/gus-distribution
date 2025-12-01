@@ -1,6 +1,5 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.context.bo.IdentityContext;
@@ -65,8 +64,8 @@ public class UserServiceImpl implements UserService {
         
         // 查询用户社交账号关联信息
         List<UserSocialPO> userSocialPOs = userSocialMapper.selectList(
-                new LambdaQueryWrapper<UserSocialPO>()
-                        .eq(UserSocialPO::getUserId, userId)
+                new QueryWrapper<UserSocialPO>()
+                        .eq("user_id", userId)
         );
         
         // 转换为VO对象
@@ -216,33 +215,33 @@ public class UserServiceImpl implements UserService {
     public PageResult<UserVO> page(UserSearchDTO searchDTO) {
         Page<UserPO> page = new Page<>(searchDTO.getPageNum(), searchDTO.getPageSize());
         
-        LambdaQueryWrapper<UserPO> queryWrapper = new LambdaQueryWrapper<>();
+        QueryWrapper<UserPO> queryWrapper = new QueryWrapper<>();
         
         // 用户昵称查询
         if (StringUtils.hasText(searchDTO.getKeyword())) {
-            queryWrapper.like(UserPO::getNickname, searchDTO.getKeyword());
+            queryWrapper.like("nickname", searchDTO.getKeyword());
         }
         
         // 用户状态查询
         if (searchDTO.getStatus() != null) {
-            queryWrapper.eq(UserPO::getStatus, searchDTO.getStatus());
+            queryWrapper.eq("status", searchDTO.getStatus());
         }
         
         // 性别查询
         if (searchDTO.getGender() != null) {
-            queryWrapper.eq(UserPO::getGender, searchDTO.getGender());
+            queryWrapper.eq("gender", searchDTO.getGender());
         }
         
         // 创建时间范围查询
         if (searchDTO.getCreateTimeStart() != null) {
-            queryWrapper.ge(UserPO::getCreatedTime, searchDTO.getCreateTimeStart());
+            queryWrapper.ge("created_time", searchDTO.getCreateTimeStart());
         }
         if (searchDTO.getCreateTimeEnd() != null) {
-            queryWrapper.le(UserPO::getCreatedTime, searchDTO.getCreateTimeEnd());
+            queryWrapper.le("created_time", searchDTO.getCreateTimeEnd());
         }
 
         // 按创建时间倒序排列
-        queryWrapper.orderByDesc(UserPO::getCreatedTime);
+        queryWrapper.orderByDesc("created_time");
         
         Page<UserPO> userPage = userMapper.selectPage(page, queryWrapper);
         
@@ -251,8 +250,8 @@ public class UserServiceImpl implements UserService {
                 .map(userPO -> {
                     // 查询用户社交账号关联信息
                     List<UserSocialPO> userSocialPOs = userSocialMapper.selectList(
-                            new LambdaQueryWrapper<UserSocialPO>()
-                                    .eq(UserSocialPO::getUserId, userPO.getId())
+                            new QueryWrapper<UserSocialPO>()
+                                    .eq("user_id", userPO.getId())
                     );
                     return convertToUserVO(userPO, userSocialPOs);
                 })

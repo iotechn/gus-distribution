@@ -1,9 +1,10 @@
 package com.dobbinsoft.gus.distribution.mapper;
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.dobbinsoft.gus.distribution.data.po.CartPO;
-import org.apache.ibatis.annotations.Mapper;
+import com.dobbinsoft.gus.distribution.mapper.mybatis.MybatisCartMapper;
+import org.springframework.stereotype.Component;
 
-@Mapper
-public interface CartMapper extends BaseMapper<CartPO> {
-} 
+@Component
+public class CartMapper extends MapperAdapter<MybatisCartMapper, CartPO> {
+}
+

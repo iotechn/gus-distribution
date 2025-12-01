@@ -7,12 +7,14 @@ import lombok.Setter;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
+import java.io.Serializable;
 import java.time.ZonedDateTime;
 
 @Getter
 @Setter
 @Schema(description = "基础实体类")
-public class BasePO {
+public class BasePO implements Pk {
 
     @Schema(description = "主键ID")
     @NotBlank(message = "ID不能为空")
@@ -46,4 +48,9 @@ public class BasePO {
     @TableField(value = "tenant_id")
     private String tenantId;
 
+
+    @Override
+    public Serializable pk() {
+        return this.id;
+    }
 }

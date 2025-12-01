@@ -1,6 +1,6 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.dto.customizer.CustomizerCreateDTO;
@@ -35,14 +35,14 @@ public class CustomizerServiceImpl implements CustomizerService {
     public PageResult<CustomizerVO> page(CustomizerSearchDTO searchDTO) {
         Page<CustomizerPO> page = new Page<>(searchDTO.getPageNum(), searchDTO.getPageSize());
         
-        LambdaQueryWrapper<CustomizerPO> queryWrapper = new LambdaQueryWrapper<>();
+        QueryWrapper<CustomizerPO> queryWrapper = new QueryWrapper<>();
         if (StringUtils.hasText(searchDTO.getName())) {
-            queryWrapper.like(CustomizerPO::getName, searchDTO.getName());
+            queryWrapper.like("name", searchDTO.getName());
         }
         if (searchDTO.getStatus() != null) {
-            queryWrapper.eq(CustomizerPO::getStatus, searchDTO.getStatus());
+            queryWrapper.eq("status", searchDTO.getStatus());
         }
-        queryWrapper.orderByDesc(CustomizerPO::getCreatedTime);
+        queryWrapper.orderByDesc("created_time");
         
         Page<CustomizerPO> resultPage = customizerMapper.selectPage(page, queryWrapper);
         
@@ -121,9 +121,9 @@ public class CustomizerServiceImpl implements CustomizerService {
 
     @Override
     public CustomizerVO first() {
-        LambdaQueryWrapper<CustomizerPO> queryWrapper = new LambdaQueryWrapper<>();
+        QueryWrapper<CustomizerPO> queryWrapper = new QueryWrapper<>();
         // 优先查询启用状态的页面
-        queryWrapper.eq(CustomizerPO::getStatus, StatusType.ENABLED.getCode());
+        queryWrapper.eq("status", StatusType.ENABLED.getCode());
         queryWrapper.last("LIMIT 1");
         
         CustomizerPO customizerPO = customizerMapper.selectOne(queryWrapper);

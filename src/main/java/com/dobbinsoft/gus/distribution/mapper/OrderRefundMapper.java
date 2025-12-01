@@ -1,9 +1,10 @@
 package com.dobbinsoft.gus.distribution.mapper;
 
-import com.dobbinsoft.gus.distribution.data.IMapper;
 import com.dobbinsoft.gus.distribution.data.po.OrderRefundPO;
-import org.apache.ibatis.annotations.Mapper;
+import com.dobbinsoft.gus.distribution.mapper.mybatis.MybatisOrderRefundMapper;
+import org.springframework.stereotype.Component;
 
-@Mapper
-public interface OrderRefundMapper extends IMapper<OrderRefundPO> {
+@Component
+public class OrderRefundMapper extends MapperAdapter<MybatisOrderRefundMapper, OrderRefundPO> {
 }
+
