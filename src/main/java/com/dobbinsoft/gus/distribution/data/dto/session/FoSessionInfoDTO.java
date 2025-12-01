@@ -8,7 +8,6 @@ import lombok.Setter;
 public class FoSessionInfoDTO {
 
     private String userId;
-    private String socialId;
     private String src;
 
 }

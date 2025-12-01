@@ -1,7 +1,6 @@
 package com.dobbinsoft.gus.distribution.data.vo.item;
 
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemDetailVO;
-import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
 import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
@@ -20,6 +19,9 @@ public class ItemWithStockVO extends ItemDetailVO {
 
     @Schema(description = "指定仓库的库存信息列表")
     private List<LocationStock> locationStocks;
+
+    @Schema(description = "指定仓库库存总和")
+    private BigDecimal locationQuantity;
 
     @Schema(description = "最便宜的 SKU 价格")
     private BigDecimal minPrice;

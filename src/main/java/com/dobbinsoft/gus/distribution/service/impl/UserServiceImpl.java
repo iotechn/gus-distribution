@@ -132,6 +132,7 @@ public class UserServiceImpl implements UserService {
         
         // 创建社交账号关联
         UserSocialPO userSocialPO = new UserSocialPO();
+        userSocialPO.setId(UuidWorker.nextId());
         userSocialPO.setUserId(userId);
         userSocialPO.setSrc(UserSrcType.DISTRIBUTION_WECHAT_WEB.getCode());
         userSocialPO.setSocialId(wechatLoginVO.getOpenid());
