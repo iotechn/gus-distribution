@@ -1,6 +1,5 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentQueryDTO;
@@ -51,9 +50,9 @@ public class CommentServiceImpl implements CommentService {
         // 2. 验证订单是否存在且属于当前用户
         String userId = SessionUtils.getFoSession().getUserId();
         OrderPO order = orderMapper.selectOne(
-                new LambdaQueryWrapper<OrderPO>()
-                        .eq(OrderPO::getOrderNo, commentCreateDTO.getOrderNo())
-                        .eq(OrderPO::getUserId, userId)
+                new QueryWrapper<OrderPO>()
+                        .eq("order_no", commentCreateDTO.getOrderNo())
+                        .eq("user_id", userId)
         );
         if (order == null) {
             throw new ServiceException(DistributionErrorCode.ORDER_NOT_FOUND);
@@ -75,10 +74,10 @@ public class CommentServiceImpl implements CommentService {
         for (CommentCreateDTO.CommentItemDTO commentItem : commentCreateDTO.getComments()) {
             // 验证订单项是否存在
             OrderItemPO orderItem = orderItemMapper.selectOne(
-                    new LambdaQueryWrapper<OrderItemPO>()
-                            .eq(OrderItemPO::getOrderId, order.getId())
-                            .eq(OrderItemPO::getSmc, commentItem.getSmc())
-                            .eq(OrderItemPO::getSku, commentItem.getSku())
+                    new QueryWrapper<OrderItemPO>()
+                            .eq("order_id", order.getId())
+                            .eq("smc", commentItem.getSmc())
+                            .eq("sku", commentItem.getSku())
             );
             if (orderItem == null) {
                 throw new ServiceException(DistributionErrorCode.COMMENT_ORDER_ITEM_NOT_FOUND);

@@ -1,9 +1,10 @@
 package com.dobbinsoft.gus.distribution.mapper;
 
-import com.dobbinsoft.gus.distribution.data.IMapper;
 import com.dobbinsoft.gus.distribution.data.po.CommentImagePO;
-import org.apache.ibatis.annotations.Mapper;
+import com.dobbinsoft.gus.distribution.mapper.mybatis.MybatisCommentImageMapper;
+import org.springframework.stereotype.Component;
 
-@Mapper
-public interface CommentImageMapper extends IMapper<CommentImagePO> {
+@Component
+public class CommentImageMapper extends MapperAdapter<MybatisCommentImageMapper, CommentImagePO> {
 }
+

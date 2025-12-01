@@ -1,7 +1,6 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.dobbinsoft.gus.distribution.data.dto.address.AddressQueryDTO;
 import com.dobbinsoft.gus.distribution.data.dto.address.AddressUpsertDTO;
 import com.dobbinsoft.gus.distribution.data.dto.session.FoSessionInfoDTO;
@@ -108,9 +107,9 @@ public class AddressServiceImpl implements AddressService {
         
         // 如果删除的是默认地址，且还有其他地址，则选择最后一个添加的地址为默认地址
         if (Boolean.TRUE.equals(addressPO.getIsDefault())) {
-            LambdaQueryWrapper<AddressPO> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(AddressPO::getUserId, sessionInfo.getUserId())
-                    .orderByDesc(AddressPO::getId)
+            QueryWrapper<AddressPO> wrapper = new QueryWrapper<>();
+            wrapper.eq("user_id", sessionInfo.getUserId())
+                    .orderByDesc("id")
                     .last("LIMIT 1");
             
             AddressPO lastAddress = addressMapper.selectOne(wrapper);
@@ -145,43 +144,43 @@ public class AddressServiceImpl implements AddressService {
         // 获取当前用户
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
-        LambdaQueryWrapper<AddressPO> wrapper = new LambdaQueryWrapper<>();
+        QueryWrapper<AddressPO> wrapper = new QueryWrapper<>();
         
         // 前台用户只能查询自己的地址，后台管理员可以查询指定用户的地址
         String targetUserId = queryDTO.getUserId();
         if (targetUserId == null) {
             // 前台用户查询自己的地址
-            wrapper.eq(AddressPO::getUserId, sessionInfo.getUserId());
+            wrapper.eq("user_id", sessionInfo.getUserId());
         } else {
             // 后台管理员查询指定用户的地址（这里可以添加权限验证）
-            wrapper.eq(AddressPO::getUserId, targetUserId);
+            wrapper.eq("user_id", targetUserId);
         }
         
         if (StringUtils.hasText(queryDTO.getUserName())) {
-            wrapper.like(AddressPO::getUserName, queryDTO.getUserName());
+            wrapper.like("user_name", queryDTO.getUserName());
         }
         if (StringUtils.hasText(queryDTO.getTelNumber())) {
-            wrapper.eq(AddressPO::getTelNumber, queryDTO.getTelNumber());
+            wrapper.eq("tel_number", queryDTO.getTelNumber());
         }
         if (StringUtils.hasText(queryDTO.getProvinceName())) {
-            wrapper.eq(AddressPO::getProvinceName, queryDTO.getProvinceName());
+            wrapper.eq("province_name", queryDTO.getProvinceName());
         }
         if (StringUtils.hasText(queryDTO.getCityName())) {
-            wrapper.eq(AddressPO::getCityName, queryDTO.getCityName());
+            wrapper.eq("city_name", queryDTO.getCityName());
         }
         if (StringUtils.hasText(queryDTO.getCountyName())) {
-            wrapper.eq(AddressPO::getCountyName, queryDTO.getCountyName());
+            wrapper.eq("county_name", queryDTO.getCountyName());
         }
         if (queryDTO.getIsDefault() != null) {
-            wrapper.eq(AddressPO::getIsDefault, queryDTO.getIsDefault());
+            wrapper.eq("is_default", queryDTO.getIsDefault());
         }
         if (StringUtils.hasText(queryDTO.getLabel())) {
-            wrapper.eq(AddressPO::getLabel, queryDTO.getLabel());
+            wrapper.eq("label", queryDTO.getLabel());
         }
         
         // 默认地址在前，按创建时间倒序
-        wrapper.orderByDesc(AddressPO::getIsDefault);
-        wrapper.orderByDesc(AddressPO::getCreatedTime);
+        wrapper.orderByDesc("is_default");
+        wrapper.orderByDesc("created_time");
         
         List<AddressPO> addressPOList = addressMapper.selectList(wrapper);
         return addressPOList.stream()
@@ -194,9 +193,9 @@ public class AddressServiceImpl implements AddressService {
         // 获取当前用户
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
-        LambdaQueryWrapper<AddressPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AddressPO::getUserId, sessionInfo.getUserId())
-                .eq(AddressPO::getIsDefault, true);
+        QueryWrapper<AddressPO> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", sessionInfo.getUserId())
+                .eq("is_default", true);
         
         AddressPO addressPO = addressMapper.selectOne(wrapper);
         if (addressPO == null) {
@@ -210,10 +209,11 @@ public class AddressServiceImpl implements AddressService {
      * 清除用户的默认地址
      */
     private void clearDefaultAddress(String userId) {
-        LambdaUpdateWrapper<AddressPO> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(AddressPO::getUserId, userId)
-                .eq(AddressPO::getIsDefault, true)
-                .set(AddressPO::getIsDefault, false);
-        addressMapper.update(null, updateWrapper);
+        AddressPO entity = new AddressPO();
+        entity.setIsDefault(false);
+        QueryWrapper<AddressPO> updateWrapper = new QueryWrapper<>();
+        updateWrapper.eq("user_id", userId)
+                .eq("is_default", true);
+        addressMapper.update(entity, updateWrapper);
     }
 } 

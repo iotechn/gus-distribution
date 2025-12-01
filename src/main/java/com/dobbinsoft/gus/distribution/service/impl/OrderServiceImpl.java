@@ -1,6 +1,6 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.client.gus.logistics.ExpressFeignClient;
@@ -181,9 +181,10 @@ public class OrderServiceImpl implements OrderService {
 
         // 如果是从购物车提交，删除购物车商品
         if (!CollectionUtils.isEmpty(submitDTO.getCartItemIds())) {
-            cartItemMapper.delete(new LambdaQueryWrapper<CartItemPO>()
-                    .in(CartItemPO::getId, submitDTO.getCartItemIds())
-                    .eq(CartItemPO::getCartId, sessionInfo.getUserId()));
+            QueryWrapper<CartItemPO> deleteWrapper = new QueryWrapper<>();
+            deleteWrapper.in("id", submitDTO.getCartItemIds())
+                    .eq("cart_id", sessionInfo.getUserId());
+            cartItemMapper.delete(deleteWrapper);
         }
 
         // 扣减库存（放在最后，如果失败方便回滚）
@@ -202,8 +203,8 @@ public class OrderServiceImpl implements OrderService {
     public OrderDetailVO getByOrderNo(String orderNo) {
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
         OrderPO orderPO = orderMapper.selectOne(
-                new LambdaQueryWrapper<OrderPO>()
-                        .eq(OrderPO::getOrderNo, orderNo));
+                new QueryWrapper<OrderPO>()
+                        .eq("order_no", orderNo));
 
         // 验证订单归属权限
         validateOrderOwnership(orderPO, sessionInfo, "无权限查看此订单");
@@ -218,8 +219,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 查询订单信息
         OrderPO orderPO = orderMapper.selectOne(
-                new LambdaQueryWrapper<OrderPO>()
-                        .eq(OrderPO::getOrderNo, prepayDTO.getOrderNo()));
+                new QueryWrapper<OrderPO>()
+                        .eq("order_no", prepayDTO.getOrderNo()));
 
         // 验证订单归属权限
         validateOrderOwnership(orderPO, sessionInfo, "无权限操作此订单");
@@ -231,8 +232,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 查询订单商品信息
         List<OrderItemPO> orderItemPOs = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItemPO>()
-                        .eq(OrderItemPO::getOrderId, orderPO.getId()));
+                new QueryWrapper<OrderItemPO>()
+                        .eq("order_id", orderPO.getId()));
 
         if (CollectionUtils.isEmpty(orderItemPOs)) {
             throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单商品不存在");
@@ -245,9 +246,9 @@ public class OrderServiceImpl implements OrderService {
         createDTO.setCurrencyCode(ObjectUtils.firstNonNull(prepayDTO.getCurrencyCode(), CurrencyCode.CNY)); // 默认使用人民币
         createDTO.setAmount(orderPO.getPayAmount());
         if (sessionInfo.getSrc().equals(UserSrcType.DISTRIBUTION_WECHAT_WEB.name())) {
-            UserSocialPO userSocialPO = userSocialMapper.selectOne(new LambdaQueryWrapper<UserSocialPO>()
-                    .eq(UserSocialPO::getSrc, UserSrcType.DISTRIBUTION_WECHAT_WEB.name())
-                    .eq(UserSocialPO::getUserId, orderPO.getUserId()));
+            UserSocialPO userSocialPO = userSocialMapper.selectOne(new QueryWrapper<UserSocialPO>()
+                    .eq("src", UserSrcType.DISTRIBUTION_WECHAT_WEB.name())
+                    .eq("user_id", orderPO.getUserId()));
             if (userSocialPO == null) {
                 throw new ServiceException(BasicErrorCode.NO_RESOURCE);
             }
@@ -364,9 +365,9 @@ public class OrderServiceImpl implements OrderService {
         // 处理购物车商品
         if (!CollectionUtils.isEmpty(submitDTO.getCartItemIds())) {
             List<CartItemPO> cartItems = cartItemMapper.selectList(
-                    new LambdaQueryWrapper<CartItemPO>()
-                            .in(CartItemPO::getId, submitDTO.getCartItemIds())
-                            .eq(CartItemPO::getCartId, userId));
+                    new QueryWrapper<CartItemPO>()
+                            .in("id", submitDTO.getCartItemIds())
+                            .eq("cart_id", userId));
 
             if (cartItems.size() != submitDTO.getCartItemIds().size()) {
                 throw new ServiceException(BasicErrorCode.NO_RESOURCE);
@@ -562,46 +563,46 @@ public class OrderServiceImpl implements OrderService {
     public PageResult<OrderListVO> page(OrderSearchDTO searchDTO) {
         Page<OrderPO> page = new Page<>(searchDTO.getPageNum(), searchDTO.getPageSize());
         
-        LambdaQueryWrapper<OrderPO> queryWrapper = new LambdaQueryWrapper<>();
+        QueryWrapper<OrderPO> queryWrapper = new QueryWrapper<>();
         
         // 订单号查询
         if (StringUtils.hasText(searchDTO.getOrderNo())) {
-            queryWrapper.like(OrderPO::getOrderNo, searchDTO.getOrderNo());
+            queryWrapper.like("order_no", searchDTO.getOrderNo());
         }
 
         // 订单状态查询
         if (searchDTO.getStatus() != null) {
-            queryWrapper.eq(OrderPO::getStatus, searchDTO.getStatus());
+            queryWrapper.eq("status", searchDTO.getStatus());
         }
 
         // 物流公司查询
         if (StringUtils.hasText(searchDTO.getLogisticsCompany())) {
-            queryWrapper.like(OrderPO::getLogisticsCompany, searchDTO.getLogisticsCompany());
+            queryWrapper.like("logistics_company", searchDTO.getLogisticsCompany());
         }
         
         // 物流单号查询
         if (StringUtils.hasText(searchDTO.getLogisticsNo())) {
-            queryWrapper.like(OrderPO::getLogisticsNo, searchDTO.getLogisticsNo());
+            queryWrapper.like("logistics_no", searchDTO.getLogisticsNo());
         }
         
         // 创建时间范围查询
         if (searchDTO.getPayTimeStart() != null) {
-            queryWrapper.ge(OrderPO::getPayTime, searchDTO.getPayTimeStart());
+            queryWrapper.ge("pay_time", searchDTO.getPayTimeStart());
         }
         if (searchDTO.getPayTimeEnd() != null) {
-            queryWrapper.le(OrderPO::getPayTime, searchDTO.getPayTimeEnd());
+            queryWrapper.le("pay_time", searchDTO.getPayTimeEnd());
         }
         
         // 发货时间范围查询
         if (searchDTO.getDeliveryTimeStart() != null) {
-            queryWrapper.ge(OrderPO::getExpressTime, searchDTO.getDeliveryTimeStart());
+            queryWrapper.ge("express_time", searchDTO.getDeliveryTimeStart());
         }
         if (searchDTO.getDeliveryTimeEnd() != null) {
-            queryWrapper.le(OrderPO::getExpressTime, searchDTO.getDeliveryTimeEnd());
+            queryWrapper.le("express_time", searchDTO.getDeliveryTimeEnd());
         }
         
         // 按创建时间倒序排列
-        queryWrapper.orderByDesc(OrderPO::getId);
+        queryWrapper.orderByDesc("id");
         
         Page<OrderPO> resultPage = orderMapper.selectPage(page, queryWrapper);
         
@@ -624,8 +625,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderDetailVO getDetailByOrderNo(String orderNo) {
         OrderPO orderPO = orderMapper.selectOne(
-            new LambdaQueryWrapper<OrderPO>()
-                .eq(OrderPO::getOrderNo, orderNo)
+            new QueryWrapper<OrderPO>()
+                .eq("order_no", orderNo)
         );
         if (orderPO == null) {
             throw new ServiceException(BasicErrorCode.NO_RESOURCE);
@@ -638,8 +639,8 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public void express(String orderNo, OrderExpressDTO expressDTO) {
         OrderPO orderPO = orderMapper.selectOne(
-            new LambdaQueryWrapper<OrderPO>()
-                .eq(OrderPO::getOrderNo, orderNo)
+            new QueryWrapper<OrderPO>()
+                .eq("order_no", orderNo)
         );
         if (orderPO == null) {
             throw new ServiceException(BasicErrorCode.NO_RESOURCE);
@@ -683,8 +684,8 @@ public class OrderServiceImpl implements OrderService {
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
         
         OrderPO orderPO = orderMapper.selectOne(
-            new LambdaQueryWrapper<OrderPO>()
-                .eq(OrderPO::getOrderNo, orderNo)
+            new QueryWrapper<OrderPO>()
+                .eq("order_no", orderNo)
         );
 
         // 验证订单归属权限
@@ -730,8 +731,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 查询订单信息
         OrderPO orderPO = orderMapper.selectOne(
-                new LambdaQueryWrapper<OrderPO>()
-                        .eq(OrderPO::getOrderNo, applyDTO.getOrderNo()));
+                new QueryWrapper<OrderPO>()
+                        .eq("order_no", applyDTO.getOrderNo()));
 
         // 验证订单归属权限
         validateOrderOwnership(orderPO, sessionInfo, "无权限操作此订单");
@@ -770,17 +771,17 @@ public class OrderServiceImpl implements OrderService {
         for (OrderRefundItemDTO itemDTO : applyDTO.getOrderRefundItems()) {
             // 查询订单商品项
             OrderItemPO orderItemPO = orderItemMapper.selectOne(
-                    new LambdaQueryWrapper<OrderItemPO>()
-                            .eq(OrderItemPO::getId, itemDTO.getOrderItemId())
-                            .eq(OrderItemPO::getOrderId, orderPO.getId()));
+                    new QueryWrapper<OrderItemPO>()
+                            .eq("id", itemDTO.getOrderItemId())
+                            .eq("order_id", orderPO.getId()));
             if (orderItemPO == null) {
                 throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单商品项不存在: " + itemDTO.getOrderItemId());
             }
 
             // 查询已申请退款的数量（包括待处理、已批准和处理中的退款）
             List<OrderRefundItemPO> existingRefundItems = orderRefundItemMapper.selectList(
-                    new LambdaQueryWrapper<OrderRefundItemPO>()
-                            .eq(OrderRefundItemPO::getOrderItemId, itemDTO.getOrderItemId()));
+                    new QueryWrapper<OrderRefundItemPO>()
+                            .eq("order_item_id", itemDTO.getOrderItemId()));
             
             // 计算已申请退款的数量
             int alreadyRefundQty = 0;
@@ -859,12 +860,12 @@ public class OrderServiceImpl implements OrderService {
         // 获取用户信息
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
-        LambdaQueryWrapper<OrderRefundPO> queryWrapper = new LambdaQueryWrapper<OrderRefundPO>()
-                .eq(OrderRefundPO::getUserId, sessionInfo.getUserId())
-                .orderByDesc(OrderRefundPO::getCreatedTime);
+        QueryWrapper<OrderRefundPO> queryWrapper = new QueryWrapper<OrderRefundPO>()
+                .eq("user_id", sessionInfo.getUserId())
+                .orderByDesc("created_time");
 
         if (StringUtils.hasText(orderNo)) {
-            queryWrapper.eq(OrderRefundPO::getOrderNo, orderNo);
+            queryWrapper.eq("order_no", orderNo);
         }
 
         List<OrderRefundPO> refundPOs = orderRefundMapper.selectList(queryWrapper);
@@ -899,9 +900,9 @@ public class OrderServiceImpl implements OrderService {
         if (orderPO != null && OrderStatusType.REFUNDING.getCode().equals(orderPO.getStatus())) {
             // 检查是否还有其他待处理的退款
             long pendingRefundCount = orderRefundMapper.selectCount(
-                    new LambdaQueryWrapper<OrderRefundPO>()
-                            .eq(OrderRefundPO::getOrderId, refundPO.getOrderId())
-                            .in(OrderRefundPO::getStatus,
+                    new QueryWrapper<OrderRefundPO>()
+                            .eq("order_id", refundPO.getOrderId())
+                            .in("status",
                                 RefundStatusType.PENDING.getCode(),
                                 RefundStatusType.APPROVED.getCode(),
                                 RefundStatusType.PROCESSING.getCode()));
@@ -924,22 +925,22 @@ public class OrderServiceImpl implements OrderService {
 
         Page<OrderPO> page = new Page<>(searchDTO.getPageNum(), searchDTO.getPageSize());
         
-        LambdaQueryWrapper<OrderPO> queryWrapper = new LambdaQueryWrapper<>();
+        QueryWrapper<OrderPO> queryWrapper = new QueryWrapper<>();
         
         // 必须过滤当前用户的订单
-        queryWrapper.eq(OrderPO::getUserId, userId);
+        queryWrapper.eq("user_id", userId);
 
         // 订单状态过滤
         if (searchDTO.getStatus() != null) {
-            queryWrapper.eq(OrderPO::getStatus, searchDTO.getStatus());
+            queryWrapper.eq("status", searchDTO.getStatus());
         }
 
         // 下单时间范围过滤（使用 createdTime）
         if (searchDTO.getCreateTimeStart() != null) {
-            queryWrapper.ge(OrderPO::getCreatedTime, searchDTO.getCreateTimeStart());
+            queryWrapper.ge("created_time", searchDTO.getCreateTimeStart());
         }
         if (searchDTO.getCreateTimeEnd() != null) {
-            queryWrapper.le(OrderPO::getCreatedTime, searchDTO.getCreateTimeEnd());
+            queryWrapper.le("created_time", searchDTO.getCreateTimeEnd());
         }
 
         // 关键字搜索（订单号或搜索关键字字段）
@@ -948,14 +949,14 @@ public class OrderServiceImpl implements OrderService {
             
             // 搜索订单号或搜索关键字字段（searchKeyword 包含商品名、SMC、SKU等信息）
             queryWrapper.and(wrapper -> wrapper
-                    .like(OrderPO::getOrderNo, keyword)
+                    .like("order_no", keyword)
                     .or()
-                    .like(OrderPO::getSearchKeyword, keyword)
+                    .like("search_keyword", keyword)
             );
         }
         
         // 按创建时间倒序排列
-        queryWrapper.orderByDesc(OrderPO::getCreatedTime);
+        queryWrapper.orderByDesc("created_time");
         
         Page<OrderPO> resultPage = orderMapper.selectPage(page, queryWrapper);
         
@@ -1079,8 +1080,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 查询订单商品
         List<OrderItemPO> orderItemPOs = orderItemMapper.selectList(
-            new LambdaQueryWrapper<OrderItemPO>()
-                .eq(OrderItemPO::getOrderId, orderPO.getId())
+            new QueryWrapper<OrderItemPO>()
+                .eq("order_id", orderPO.getId())
         );
 
         // 设置订单商品
@@ -1239,8 +1240,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 根据订单号查询订单
         OrderPO orderPO = orderMapper.selectOne(
-                new LambdaQueryWrapper<OrderPO>()
-                        .eq(OrderPO::getOrderNo, transactionUpdateEventDTO.getOrderNo()));
+                new QueryWrapper<OrderPO>()
+                        .eq("order_no", transactionUpdateEventDTO.getOrderNo()));
 
         if (orderPO == null) {
             log.error("支付回调失败: 订单不存在, orderNo={}", transactionUpdateEventDTO.getOrderNo());

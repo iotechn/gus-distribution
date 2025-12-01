@@ -1,9 +1,9 @@
 package com.dobbinsoft.gus.distribution.mapper;
 
-import com.dobbinsoft.gus.distribution.data.IMapper;
 import com.dobbinsoft.gus.distribution.data.po.AddressPO;
-import org.apache.ibatis.annotations.Mapper;
+import com.dobbinsoft.gus.distribution.mapper.mybatis.MybatisAddressMapper;
+import org.springframework.stereotype.Component;
 
-@Mapper
-public interface AddressMapper extends IMapper<AddressPO> {
-} 
+@Component
+public class AddressMapper extends MapperAdapter<MybatisAddressMapper, AddressPO> {
+}

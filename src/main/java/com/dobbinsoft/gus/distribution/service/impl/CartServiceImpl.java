@@ -1,7 +1,6 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.client.gus.product.ProductItemFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.product.ProductStockFeignClient;
@@ -101,8 +100,8 @@ public class CartServiceImpl implements CartService {
         CartPO cart = getOrCreateUserCart(sessionInfo.getUserId());
 
         // 检查购物车商品数量限制
-        LambdaQueryWrapper<CartItemPO> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(CartItemPO::getCartId, cart.getId());
+        QueryWrapper<CartItemPO> countWrapper = new QueryWrapper<>();
+        countWrapper.eq("cart_id", cart.getId());
         long currentItemCount = cartItemMapper.selectCount(countWrapper);
         if (currentItemCount >= MAX_CART_ITEMS) {
             throw new ServiceException(DistributionErrorCode.CART_SMC_NUMBER_GREATER_THAN_MAX,
@@ -113,12 +112,12 @@ public class CartServiceImpl implements CartService {
         String customizationSignature = generateCustomizationSignature(addCartItemDTO.getCustomizations());
 
         // 查找是否已存在相同商品和客制化选项
-        LambdaQueryWrapper<CartItemPO> existingWrapper = new LambdaQueryWrapper<>();
-        existingWrapper.eq(CartItemPO::getCartId, cart.getId())
-                .eq(CartItemPO::getSmc, addCartItemDTO.getSmc())
-                .eq(CartItemPO::getSku, addCartItemDTO.getSku())
-                .eq(CartItemPO::getCustomizationSignature, customizationSignature)
-                .eq(CartItemPO::getStatus, StatusType.ENABLED.getCode());
+        QueryWrapper<CartItemPO> existingWrapper = new QueryWrapper<>();
+        existingWrapper.eq("cart_id", cart.getId())
+                .eq("smc", addCartItemDTO.getSmc())
+                .eq("sku", addCartItemDTO.getSku())
+                .eq("customization_signature", customizationSignature)
+                .eq("status", StatusType.ENABLED.getCode());
         
         CartItemPO existingItem = cartItemMapper.selectOne(existingWrapper);
 
@@ -171,10 +170,10 @@ public class CartServiceImpl implements CartService {
         }
 
         // 获取购物车商品列表
-        LambdaQueryWrapper<CartItemPO> itemWrapper = new LambdaQueryWrapper<>();
-        itemWrapper.eq(CartItemPO::getCartId, cart.getId())
-                .orderByAsc(CartItemPO::getStatus) // 有效商品在前
-                .orderByDesc(CartItemPO::getCreatedTime); // 按创建时间倒序
+        QueryWrapper<CartItemPO> itemWrapper = new QueryWrapper<>();
+        itemWrapper.eq("cart_id", cart.getId())
+                .orderByAsc("status") // 有效商品在前
+                .orderByDesc("created_time"); // 按创建时间倒序
         
         List<CartItemPO> cartItems = cartItemMapper.selectList(itemWrapper);
 
@@ -274,8 +273,8 @@ public class CartServiceImpl implements CartService {
         validateCartOwnership(cart, sessionInfo.getUserId());
 
         // 删除客制化选项
-        LambdaQueryWrapper<CartItemCustomizationPO> customizationWrapper = new LambdaQueryWrapper<>();
-        customizationWrapper.eq(CartItemCustomizationPO::getCartItemId, cartItemId);
+        QueryWrapper<CartItemCustomizationPO> customizationWrapper = new QueryWrapper<>();
+        customizationWrapper.eq("cart_item_id", cartItemId);
         cartItemCustomizationMapper.delete(customizationWrapper);
 
         // 删除购物车商品
@@ -332,9 +331,9 @@ public class CartServiceImpl implements CartService {
      * 根据用户ID获取购物车
      */
     private CartPO getUserCartByUserId(String userId) {
-        LambdaQueryWrapper<CartPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CartPO::getReferType, CartReferType.USER.getCode())
-                .eq(CartPO::getReferId, userId);
+        QueryWrapper<CartPO> wrapper = new QueryWrapper<>();
+        wrapper.eq("refer_type", CartReferType.USER.getCode())
+                .eq("refer_id", userId);
         return cartMapper.selectOne(wrapper);
     }
 
@@ -370,20 +369,21 @@ public class CartServiceImpl implements CartService {
      */
     private void updateCartQuantity(String cartId) {
         // 使用SQL聚合查询，避免加载所有数据到内存
-        LambdaQueryWrapper<CartItemPO> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(CartItemPO::getCartId, cartId)
-                .eq(CartItemPO::getStatus, StatusType.ENABLED.getCode())
-                .select(CartItemPO::getQuantity);
+        QueryWrapper<CartItemPO> countWrapper = new QueryWrapper<>();
+        countWrapper.eq("cart_id", cartId)
+                .eq("status", StatusType.ENABLED.getCode())
+                .select("quantity");
         
         List<CartItemPO> items = cartItemMapper.selectList(countWrapper);
         long totalQuantity = items.stream()
                 .mapToLong(CartItemPO::getQuantity)
                 .sum();
 
-        LambdaUpdateWrapper<CartPO> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CartPO::getId, cartId)
-                .set(CartPO::getQuantity, (int) totalQuantity);
-        cartMapper.update(null, updateWrapper);
+        CartPO updateEntity = new CartPO();
+        updateEntity.setQuantity((int) totalQuantity);
+        QueryWrapper<CartPO> updateWrapper = new QueryWrapper<>();
+        updateWrapper.eq("id", cartId);
+        cartMapper.update(updateEntity, updateWrapper);
     }
 
     /**
@@ -399,8 +399,8 @@ public class CartServiceImpl implements CartService {
                 .map(CartItemPO::getId)
                 .collect(Collectors.toList());
         
-        LambdaQueryWrapper<CartItemCustomizationPO> customizationWrapper = new LambdaQueryWrapper<>();
-        customizationWrapper.in(CartItemCustomizationPO::getCartItemId, cartItemIds);
+        QueryWrapper<CartItemCustomizationPO> customizationWrapper = new QueryWrapper<>();
+        customizationWrapper.in("cart_item_id", cartItemIds);
         List<CartItemCustomizationPO> allCustomizations = cartItemCustomizationMapper.selectList(customizationWrapper);
         
         // 按cartItemId分组
@@ -444,8 +444,8 @@ public class CartServiceImpl implements CartService {
         
         // 批量删除失效的客制化选项
         if (!invalidCartItemIds.isEmpty()) {
-            LambdaQueryWrapper<CartItemCustomizationPO> deleteWrapper = new LambdaQueryWrapper<>();
-            deleteWrapper.in(CartItemCustomizationPO::getCartItemId, invalidCartItemIds);
+            QueryWrapper<CartItemCustomizationPO> deleteWrapper = new QueryWrapper<>();
+            deleteWrapper.in("cart_item_id", invalidCartItemIds);
             cartItemCustomizationMapper.delete(deleteWrapper);
             
             // 批量更新购物车商品
@@ -489,8 +489,8 @@ public class CartServiceImpl implements CartService {
         
         // 批量删除客制化选项
         if (!cartItemIdsToDelete.isEmpty()) {
-            LambdaQueryWrapper<CartItemCustomizationPO> customizationWrapper = new LambdaQueryWrapper<>();
-            customizationWrapper.in(CartItemCustomizationPO::getCartItemId, cartItemIdsToDelete);
+            QueryWrapper<CartItemCustomizationPO> customizationWrapper = new QueryWrapper<>();
+            customizationWrapper.in("cart_item_id", cartItemIdsToDelete);
             cartItemCustomizationMapper.delete(customizationWrapper);
             
             // 批量删除购物车商品
@@ -527,8 +527,8 @@ public class CartServiceImpl implements CartService {
         
         Map<String, List<CartItemCustomizationPO>> customizationMap = new HashMap<>();
         if (!cartItemIds.isEmpty()) {
-            LambdaQueryWrapper<CartItemCustomizationPO> customizationWrapper = new LambdaQueryWrapper<>();
-            customizationWrapper.in(CartItemCustomizationPO::getCartItemId, cartItemIds);
+            QueryWrapper<CartItemCustomizationPO> customizationWrapper = new QueryWrapper<>();
+            customizationWrapper.in("cart_item_id", cartItemIds);
             List<CartItemCustomizationPO> allCustomizations = cartItemCustomizationMapper.selectList(customizationWrapper);
             
             // 按cartItemId分组
