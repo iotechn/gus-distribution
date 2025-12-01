@@ -17,6 +17,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -110,6 +111,8 @@ public class ItemServiceImpl implements ItemService {
         }
         ItemStockVO itemStockVO = stockResult.getData();
         if (itemStockVO == null || CollectionUtils.isEmpty(itemStockVO.getStocks())) {
+            target.setLocationStocks(new ArrayList<>());
+            target.setLocationQuantity(BigDecimal.ZERO);
             return target;
         }
         List<ItemWithStockVO.LocationStock> locationStockList = itemStockVO.getStocks().stream()
@@ -117,6 +120,7 @@ public class ItemServiceImpl implements ItemService {
                 .map(this::convertStock)
                 .collect(Collectors.toList());
         target.setLocationStocks(locationStockList);
+        target.setLocationQuantity(locationStockList.stream().map(ItemWithStockVO.LocationStock::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add));
         target.setMinPrice(locationStockList.stream()
                 .map(ItemWithStockVO.LocationStock::getPrice)
                 .filter(Objects::nonNull)

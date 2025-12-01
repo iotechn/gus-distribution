@@ -38,21 +38,6 @@ public class ItemDetailVO extends ItemVO {
 
     @Getter
     @Setter
-    @Schema(description = "Item Specification Value VO")
-    public static class ItemSpecificationValueVO {
-        @Schema(description = "Value ID")
-        private String id;
-
-        @Schema(description = "Value name")
-        private String name;
-
-        @Schema(description = "Specification value")
-        private String specificationValue;
-
-    }
-
-    @Getter
-    @Setter
     @Schema(description = "Item Attribute VO")
     public static class ItemAttrVO {
         @Schema(description = "Field key")

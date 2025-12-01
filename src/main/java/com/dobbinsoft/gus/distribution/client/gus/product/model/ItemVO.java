@@ -80,6 +80,9 @@ public class ItemVO {
         @Schema(description = "SKU code")
         private String sku;
 
+        @Schema(description = "SKU union specificationValues")
+        private List<ItemSpecificationValueVO> specificationValues;
+
         @Schema(description = "Created time")
         private ZonedDateTime createTime;
 
