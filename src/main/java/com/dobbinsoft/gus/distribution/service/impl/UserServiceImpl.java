@@ -2,8 +2,6 @@ package com.dobbinsoft.gus.distribution.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.context.bo.IdentityContext;
 import com.dobbinsoft.gus.distribution.client.configcenter.ConfigCenterClient;
@@ -21,6 +19,9 @@ import com.dobbinsoft.gus.distribution.data.util.JwtUtils;
 import com.dobbinsoft.gus.distribution.data.vo.user.AuthResultVO;
 import com.dobbinsoft.gus.distribution.data.vo.user.UserVO;
 import com.dobbinsoft.gus.distribution.data.vo.user.UserWechatMpLoginVO;
+import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.util.StringUtils;
 import com.dobbinsoft.gus.distribution.mapper.UserMapper;
 import com.dobbinsoft.gus.distribution.mapper.UserSocialMapper;
 import com.dobbinsoft.gus.distribution.service.UserService;
@@ -30,7 +31,6 @@ import com.dobbinsoft.gus.web.exception.ServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
