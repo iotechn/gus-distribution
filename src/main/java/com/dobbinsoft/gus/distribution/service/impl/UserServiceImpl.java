@@ -146,13 +146,12 @@ public class UserServiceImpl implements UserService {
      */
     private void updateUserLastLogin(String userId) {
         UserPO userUpdate = new UserPO();
-        userUpdate.setId(userId);
         userUpdate.setLastLoginTime(LocalDateTime.now());
         // 这里可以根据需要设置IP地址，从请求上下文中获取
         GenericRequestContextHolder.getTraceContext().ifPresent(traceContext -> {
             userUpdate.setLastLoginIp(traceContext.getIp());
         });
-        userMapper.updateById(userUpdate);
+        userMapper.update(userUpdate, new QueryWrapper<UserPO>().eq("id", userId));
     }
 
     /**
