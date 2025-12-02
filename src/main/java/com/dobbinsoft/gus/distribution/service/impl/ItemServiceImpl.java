@@ -20,7 +20,9 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -120,6 +122,30 @@ public class ItemServiceImpl implements ItemService {
                 .map(this::convertStock)
                 .collect(Collectors.toList());
         target.setLocationStocks(locationStockList);
+
+        // 将当前 location 的库存/价格信息组装到父类中的 skus 列表（按 sku 唯一）
+        if (!CollectionUtils.isEmpty(target.getSkus())) {
+            Map<String, ItemWithStockVO.LocationStock> stockBySku = locationStockList.stream()
+                    .collect(Collectors.toMap(ItemWithStockVO.LocationStock::getSku, Function.identity(), (a, b) -> a));
+            for (ItemVO.ItemSkuVO skuVO : target.getSkus()) {
+                ItemWithStockVO.LocationStock ls = stockBySku.get(skuVO.getSku());
+                if (ls != null) {
+                    skuVO.setLocationCode(ls.getLocationCode());
+                    skuVO.setLocationSku(ls.getLocationSku());
+                    skuVO.setCurrencyCode(ls.getCurrencyCode());
+                    skuVO.setPrice(ls.getPrice());
+                    skuVO.setQuantity(ls.getQuantity());
+                } else {
+                    // 指定仓库没有该 SKU 的报价/库存，保留为空
+                    skuVO.setLocationCode(null);
+                    skuVO.setLocationSku(null);
+                    skuVO.setCurrencyCode(null);
+                    skuVO.setPrice(null);
+                    skuVO.setQuantity(null);
+                }
+            }
+        }
+
         target.setLocationQuantity(locationStockList.stream().map(ItemWithStockVO.LocationStock::getQuantity).reduce(BigDecimal.ZERO, BigDecimal::add));
         target.setMinPrice(locationStockList.stream()
                 .map(ItemWithStockVO.LocationStock::getPrice)

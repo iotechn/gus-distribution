@@ -20,7 +20,6 @@ public class AddressUpsertDTO {
     private String telNumber;
 
     @Schema(description = "邮编", example = "100000")
-    @Pattern(regexp = "^\\d{6}$", message = "邮编格式不正确")
     private String postalCode;
 
     @Schema(description = "省份", example = "北京市", required = true)

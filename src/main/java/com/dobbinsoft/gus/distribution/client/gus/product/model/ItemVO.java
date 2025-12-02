@@ -1,9 +1,11 @@
 package com.dobbinsoft.gus.distribution.client.gus.product.model;
 
+import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -82,6 +84,23 @@ public class ItemVO {
 
         @Schema(description = "SKU union specificationValues")
         private List<ItemSpecificationValueVO> specificationValues;
+
+        // ========== Location-related stock fields (filled when a location is specified) ==========
+        @Schema(description = "Warehouse location code for this SKU (when filtered by location)")
+        private String locationCode;
+
+        @Schema(description = "Composite primary key: locationCode_sku (when filtered by location)")
+        private String locationSku;
+
+        @Schema(description = "Currency code of the price at the specified location")
+        private CurrencyCode currencyCode;
+
+        @Schema(description = "Price at the specified location")
+        private BigDecimal price;
+
+        @Schema(description = "Available quantity at the specified location")
+        private BigDecimal quantity;
+        // ======================================================================
 
         @Schema(description = "Created time")
         private ZonedDateTime createTime;
