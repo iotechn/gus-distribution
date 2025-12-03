@@ -46,8 +46,8 @@ public class ItemServiceImpl implements ItemService {
             PageResult<ItemWithStockVO> emptyResult = new PageResult<>();
             emptyResult.setData(Collections.emptyList());
             emptyResult.setHasMore(Boolean.FALSE);
-            emptyResult.setPageNumber(0);
-            emptyResult.setPageSize(0);
+            emptyResult.setPageNumber(searchDTO.getPageNum());
+            emptyResult.setPageSize(searchDTO.getPageSize());
             emptyResult.setTotalCount(0);
             emptyResult.setTotalPages(0);
             return emptyResult;

@@ -1,5 +1,23 @@
 [
   {
+    "name": "com.dobbinsoft.gus.distribution.data.po.BasePO",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
+    "name": "com.dobbinsoft.gus.distribution.data.po.AddressPO",
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredFields": true,
+    "allPublicFields": true
+  },
+  {
     "name": "com.dobbinsoft.gus.distribution.data.dto.PageDTO",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,

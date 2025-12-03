@@ -1,5 +1,6 @@
 package com.dobbinsoft.gus.distribution.controller.fo;
 
+import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentQueryDTO;
 import com.dobbinsoft.gus.distribution.data.vo.comment.CommentVO;
@@ -33,14 +34,13 @@ public class CommentController {
     }
 
     @GetMapping
-    @Operation(summary = "查询评论列表", description = "根据条件查询评论列表")
-    public R<List<CommentVO>> queryComments(
+    @Operation(summary = "查询评论列表", description = "根据条件分页查询评论列表")
+    public R<PageResult<CommentVO>> queryComments(
             @Valid CommentQueryDTO commentQueryDTO) {
-        List<CommentVO> comments = commentService.queryComments(commentQueryDTO);
-        return R.success(comments);
+        PageResult<CommentVO> page = commentService.queryComments(commentQueryDTO);
+        return R.success(page);
     }
 
-    // TODO 查询，有必要评价功能吗？
     @GetMapping("/order/{orderNo}")
     @Operation(summary = "根据订单号查询评论", description = "查询指定订单的所有评论")
     public R<List<CommentVO>> getCommentsByOrderNo(
@@ -50,11 +50,13 @@ public class CommentController {
     }
 
     @GetMapping("/product")
-    @Operation(summary = "根据商品查询评论", description = "查询指定商品的评论")
-    public R<List<CommentVO>> getCommentsByProduct(
+    @Operation(summary = "根据商品查询评论", description = "分页查询指定商品的评论")
+    public R<PageResult<CommentVO>> getCommentsByProduct(
             @Parameter(description = "商品款号") @RequestParam String smc,
-            @Parameter(description = "SKU") @RequestParam String sku) {
-        List<CommentVO> comments = commentService.getCommentsByProduct(smc, sku);
-        return R.success(comments);
+            @Parameter(description = "SKU") @RequestParam String sku,
+            @Parameter(description = "页码") @RequestParam Integer pageNum,
+            @Parameter(description = "每页数量") @RequestParam Integer pageSize) {
+        PageResult<CommentVO> page = commentService.getCommentsByProduct(smc, sku, pageNum, pageSize);
+        return R.success(page);
     }
 }
