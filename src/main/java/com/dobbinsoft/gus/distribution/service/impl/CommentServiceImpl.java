@@ -1,6 +1,8 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentQueryDTO;
 import com.dobbinsoft.gus.distribution.data.enums.OrderStatusType;
@@ -124,9 +126,9 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public List<CommentVO> queryComments(CommentQueryDTO commentQueryDTO) {
+    public PageResult<CommentVO> queryComments(CommentQueryDTO commentQueryDTO) {
         QueryWrapper<CommentPO> queryWrapper = new QueryWrapper<>();
-        
+
         if (StringUtils.hasText(commentQueryDTO.getSmc())) {
             queryWrapper.eq("smc", commentQueryDTO.getSmc());
         }
@@ -145,8 +147,18 @@ public class CommentServiceImpl implements CommentService {
 
         queryWrapper.orderByDesc("created_time");
 
-        List<CommentPO> comments = commentMapper.selectList(queryWrapper);
-        return convertToVOList(comments);
+        Page<CommentPO> page = new Page<>(commentQueryDTO.getPageNum(), commentQueryDTO.getPageSize());
+        Page<CommentPO> resultPage = commentMapper.selectPage(page, queryWrapper);
+
+        List<CommentVO> voList = convertToVOList(resultPage.getRecords());
+        return PageResult.<CommentVO>builder()
+                .totalCount(resultPage.getTotal())
+                .totalPages(resultPage.getPages())
+                .pageNumber((int) resultPage.getCurrent())
+                .pageSize((int) resultPage.getSize())
+                .hasMore(resultPage.hasNext())
+                .data(voList)
+                .build();
     }
 
     @Override
@@ -160,14 +172,24 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public List<CommentVO> getCommentsByProduct(String smc, String sku) {
+    public PageResult<CommentVO> getCommentsByProduct(String smc, String sku, Integer pageNum, Integer pageSize) {
         QueryWrapper<CommentPO> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("smc", smc);
         queryWrapper.eq("sku", sku);
         queryWrapper.orderByDesc("created_time");
 
-        List<CommentPO> comments = commentMapper.selectList(queryWrapper);
-        return convertToVOList(comments);
+        Page<CommentPO> page = new Page<>(pageNum, pageSize);
+        Page<CommentPO> resultPage = commentMapper.selectPage(page, queryWrapper);
+
+        List<CommentVO> voList = convertToVOList(resultPage.getRecords());
+        return PageResult.<CommentVO>builder()
+                .totalCount(resultPage.getTotal())
+                .totalPages(resultPage.getPages())
+                .pageNumber((int) resultPage.getCurrent())
+                .pageSize((int) resultPage.getSize())
+                .hasMore(resultPage.hasNext())
+                .data(voList)
+                .build();
     }
 
     private List<CommentVO> convertToVOList(List<CommentPO> comments) {
