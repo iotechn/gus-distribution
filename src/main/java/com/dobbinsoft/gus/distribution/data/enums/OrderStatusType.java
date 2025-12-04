@@ -11,12 +11,11 @@ public enum OrderStatusType implements BaseEnums<Integer> {
     UNPAY(10, "未付款", true),
     WAIT_STOCK(20, "待出库", true),
     WAIT_CONFIRM(30, "待收货", true),
-    WAIT_CHECK_CODE(40, "待核销", true),
-    WAIT_COMMENT(50, "待评价", true),
-    COMPLETE(60, "已完成", false),
-    REFUNDING(70, "退款中", true),
-    REFUNDED(80, "已退款", false),
-    CANCELED(90, "已取消", false),
+    WAIT_COMMENT(40, "待评价", true),
+    COMPLETE(50, "已完成", false),
+    REFUNDING(60, "退款中", true),
+    REFUNDED(70, "已退款", false),
+    CANCELED(80, "已取消", false),
 
     ;
 
@@ -58,17 +57,13 @@ public enum OrderStatusType implements BaseEnums<Integer> {
         return null;
     }
 
-    public static List<Integer> shipStatutes() {
-        return Arrays.asList(WAIT_CHECK_CODE.getCode(), WAIT_COMMENT.getCode(), WAIT_CONFIRM.getCode(), COMPLETE.getCode());
-    }
-
     public static List<Integer> settleStatutes() {
         return Arrays.asList(WAIT_COMMENT.getCode(), COMPLETE.getCode(), REFUNDED.getCode());
     }
 
     public static List<Integer> freezeStatutes() {
         // 12, 20, 30, 35, 60, 70
-        return Arrays.asList(WAIT_STOCK.getCode(), WAIT_CONFIRM.getCode(), WAIT_CHECK_CODE.getCode(), REFUNDING.getCode());
+        return Arrays.asList(WAIT_STOCK.getCode(), WAIT_CONFIRM.getCode(), REFUNDING.getCode());
     }
 
     public static List<Integer> settleAndFreezeStatutes() {

@@ -49,20 +49,11 @@ public class OrderListVO {
     @Schema(description = "支付单号", example = "pay_123456")
     private String payNo;
     
-    @Schema(description = "物流商代码", example = "SF")
-    private String logisticsCompanyCode;
-    
-    @Schema(description = "物流公司名称", example = "顺丰速运")
-    private String logisticsCompany;
-    
-    @Schema(description = "物流单号", example = "SF1234567890")
-    private String logisticsNo;
-    
-    @Schema(description = "物流预估费用", example = "15.00")
-    private BigDecimal logisticsEstimatedPrice;
-    
     @Schema(description = "创建时间", example = "2024-12-01T12:00:00Z")
     private ZonedDateTime createTime;
+
+    @Schema(description = "配送单号")
+    private String deliveryNo;
     
     @Schema(description = "发货时间", example = "2024-12-02T10:00:00Z")
     private ZonedDateTime deliveryTime;

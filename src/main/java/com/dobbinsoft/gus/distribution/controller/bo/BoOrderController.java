@@ -1,7 +1,6 @@
 package com.dobbinsoft.gus.distribution.controller.bo;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
-import com.dobbinsoft.gus.distribution.data.dto.order.OrderExpressDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
@@ -15,7 +14,6 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "后台-订单管理", description = "订单的查询、发货、退款等管理操作")
@@ -42,26 +40,6 @@ public class BoOrderController {
             @PathVariable String orderNo) {
         OrderDetailVO orderDetail = orderService.getDetailByOrderNo(orderNo);
         return R.success(orderDetail);
-    }
-
-    @Operation(summary = "订单发货", description = "为订单添加物流信息并更新状态为已发货")
-    @PostMapping("/{orderNo}/express")
-    @ResponseStatus(HttpStatus.CREATED)
-    public R<Void> express(
-            @Parameter(description = "订单号", required = true, example = "O202412011234567890")
-            @PathVariable String orderNo,
-            @Parameter(description = "发货信息", required = true,
-                content = @Content(examples = {
-                    @ExampleObject(name = "订单发货", value = """
-                        {
-                          "logisticsCompanyCode": "SF",
-                          "logisticsNo": "SF1234567890",
-                        }
-                        """)
-                }))
-            @Valid @RequestBody OrderExpressDTO expressDTO) {
-        orderService.express(orderNo, expressDTO);
-        return R.success();
     }
 
     @Operation(summary = "确认收货", description = "确认订单已收货，更新订单状态")

@@ -9,15 +9,6 @@
     "allPublicFields": true
   },
   {
-    "name": "com.dobbinsoft.gus.distribution.data.po.AddressPO",
-    "allDeclaredConstructors": true,
-    "allPublicConstructors": true,
-    "allDeclaredMethods": true,
-    "allPublicMethods": true,
-    "allDeclaredFields": true,
-    "allPublicFields": true
-  },
-  {
     "name": "com.dobbinsoft.gus.distribution.data.dto.PageDTO",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
@@ -136,15 +127,6 @@
   },
   {
     "name": "com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO",
-    "allDeclaredConstructors": true,
-    "allPublicConstructors": true,
-    "allDeclaredMethods": true,
-    "allPublicMethods": true,
-    "allDeclaredFields": true,
-    "allPublicFields": true
-  },
-  {
-    "name": "com.dobbinsoft.gus.distribution.data.dto.order.OrderExpressDTO",
     "allDeclaredConstructors": true,
     "allPublicConstructors": true,
     "allDeclaredMethods": true,
@@ -277,5 +259,18 @@
     "allPublicMethods": true,
     "allDeclaredFields": true,
     "allPublicFields": true
-  }
+  },
+
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderVO$OrderAddressVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderVO$OrderItemVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO$OrderAddressVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO$OrderItemDetailVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO$OrderRefundVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderPrepayVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true},
+  {"name": "com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundItemVO", "allDeclaredConstructors": true, "allPublicConstructors": true, "allDeclaredMethods": true, "allPublicMethods": true, "allDeclaredFields": true, "allPublicFields": true}
 ]

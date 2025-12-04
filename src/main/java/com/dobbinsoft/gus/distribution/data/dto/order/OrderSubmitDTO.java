@@ -35,10 +35,10 @@ public class OrderSubmitDTO {
     @Schema(description = "订单商品信息")
     public static class OrderItem {
 
-        @Schema(description = "SKU ID", example = "SKU001")
-        @NotEmpty(message = "SKU ID不能为空")
-        @Size(max = 100, message = "SKU ID长度不能超过100个字符")
-        private String skuId;
+        @Schema(description = "SKU", example = "SKU001")
+        @NotEmpty(message = "SKU不能为空")
+        @Size(max = 100, message = "SKU长度不能超过100个字符")
+        private String sku;
 
         @Schema(description = "购买数量", example = "2")
         @NotNull(message = "购买数量不能为空")

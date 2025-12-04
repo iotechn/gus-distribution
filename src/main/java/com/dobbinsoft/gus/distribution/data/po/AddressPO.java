@@ -10,6 +10,8 @@ import org.springframework.beans.BeanUtils;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @TableName("ds_address")
@@ -53,6 +55,14 @@ public class AddressPO extends BasePO {
 
     @Schema(description = "地址标签（家、公司等）")
     private String label;
+
+    @Schema(description = "纬度", requiredMode = Schema.RequiredMode.REQUIRED, example = "39.9142")
+    @NotNull(message = "纬度不能为空")
+    private BigDecimal latitude;
+
+    @Schema(description = "经度", requiredMode = Schema.RequiredMode.REQUIRED, example = "116.4174")
+    @NotNull(message = "经度不能为空")
+    private BigDecimal longitude;
 
     public AddressVO convertToVO() {
         AddressVO addressVO = new AddressVO();

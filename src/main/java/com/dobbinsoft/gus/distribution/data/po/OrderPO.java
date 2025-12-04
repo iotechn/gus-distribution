@@ -32,20 +32,11 @@ public class OrderPO extends BasePO {
     @NotNull(message = "订单状态不能为空")
     private Integer status;
 
-    @Schema(description = "物流商code")
-    private String logisticsCompanyCode;
+    @Schema(description = "配送单号")
+    private String deliveryNo;
 
-    @Schema(description = "物流公司名称")
-    private String logisticsCompany;
-
-    @Schema(description = "物流单号")
-    private String logisticsNo;
-
-    @Schema(description = "物流预估费用")
-    private BigDecimal logisticsEstimatedPrice;
-
-    @Schema(description = "发货时间")
-    private ZonedDateTime expressTime;
+    @Schema(description = "配送单创建时间")
+    private ZonedDateTime deliveryTime;
 
     @Schema(description = "实际收货日期")
     private ZonedDateTime confirmTime;
@@ -65,7 +56,7 @@ public class OrderPO extends BasePO {
     private BigDecimal payAmount;
 
     @Schema(description = "订单支付时间")
-    private LocalDateTime payTime;
+    private ZonedDateTime payTime;
 
     @Schema(description = "订单总金额")
     @NotNull(message = "订单总金额不能为空")

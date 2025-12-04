@@ -1,6 +1,6 @@
 package com.dobbinsoft.gus.distribution.data.vo.order;
 
-import com.dobbinsoft.gus.distribution.data.vo.express.ExpressOrderVO;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,8 +14,8 @@ import java.util.List;
 @Schema(description = "订单详情VO")
 public class OrderDetailVO extends OrderListVO {
     
-    @Schema(description = "物流信息（订单发货后返回，调用物流失败则不返回）")
-    private ExpressOrderVO expressOrder;
+    @Schema(description = "配送单信息")
+    private DeliveryOrderVO deliveryOrder;
     
     @Schema(description = "退款信息列表")
     private List<OrderRefundVO> refunds;
