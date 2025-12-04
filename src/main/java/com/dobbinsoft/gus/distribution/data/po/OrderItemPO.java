@@ -36,12 +36,6 @@ public class OrderItemPO extends BasePO {
     @NotBlank(message = "SKU不能为空")
     private String sku;
 
-    @Schema(description = "分类ID")
-    private String categoryId;
-
-    @Schema(description = "分类商品")
-    private String categoryName;
-
     @Schema(description = "商品单位")
     private String unit;
 
@@ -59,9 +53,6 @@ public class OrderItemPO extends BasePO {
     @Schema(description = "商品价格")
     @NotNull(message = "商品价格不能为空")
     private BigDecimal price;
-
-    @Schema(description = "商品原价")
-    private BigDecimal originalPrice;
 
     @Schema(description = "备注")
     private String remark;

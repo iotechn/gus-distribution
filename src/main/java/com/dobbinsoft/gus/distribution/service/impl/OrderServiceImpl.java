@@ -19,6 +19,8 @@ import com.dobbinsoft.gus.distribution.client.gus.product.ProductStockFeignClien
 import com.dobbinsoft.gus.distribution.client.gus.product.model.BatchStockAdjustDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemSearchDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
+import com.dobbinsoft.gus.distribution.client.gus.product.model.ListStockVO;
+import com.dobbinsoft.gus.distribution.client.gus.product.model.StockSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.*;
 import com.dobbinsoft.gus.distribution.data.dto.session.FoSessionInfoDTO;
 import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
@@ -70,12 +72,12 @@ public class OrderServiceImpl implements OrderService {
     private final LocationFeignClient locationFeignClient;
 
     @Override
-    public OrderPreviewVO preview(OrderSubmitDTO submitDTO) {
+    public OrderPreviewVO preview(OrderSubmitDTO submitDTO, String locationCode) {
         // 获取用户信息
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
         // 获取订单商品信息（与提交逻辑一致）
-        List<OrderItemInfo> orderItemInfos = getOrderItemInfos(submitDTO, sessionInfo.getUserId());
+        List<OrderItemInfo> orderItemInfos = getOrderItemInfos(submitDTO, locationCode);
 
         // 计算商品总金额
         BigDecimal goodsTotalAmount = orderItemInfos.stream()
@@ -88,9 +90,26 @@ public class OrderServiceImpl implements OrderService {
             throw new ServiceException(BasicErrorCode.NO_RESOURCE);
         }
 
-        // 配送费预估：由于预览阶段无法获取门店编码，这里暂以0返回
-        // 如需精准计算，请在Controller中同submit一样通过请求头传入门店locationCode，并扩展Service接口
-        BigDecimal deliveryAmount = BigDecimal.ZERO;
+        // 通过门店编码查询门店坐标，并调用配送费服务进行预估
+        R<LocationVO> locationResult = locationFeignClient.detail(locationCode);
+        if (!BasicErrorCode.SUCCESS.getCode().equals(locationResult.getCode())) {
+            throw new ServiceException(locationResult.getCode(), locationResult.getMessage());
+        }
+        LocationVO locationVO = locationResult.getData();
+        DeliveryFeePreviewDTO deliveryFeePreviewDTO = new DeliveryFeePreviewDTO();
+        deliveryFeePreviewDTO.setLocationCode(locationCode);
+        deliveryFeePreviewDTO.setOrderAmount(goodsTotalAmount);
+        deliveryFeePreviewDTO.setStartLatitude(locationVO.getLatitude());
+        deliveryFeePreviewDTO.setStartLongitude(locationVO.getLongitude());
+        deliveryFeePreviewDTO.setEndLatitude(addressPO.getLatitude());
+        deliveryFeePreviewDTO.setEndLongitude(addressPO.getLongitude());
+
+        R<DeliveryFeePreviewVO> deliveryFeePreviewResult = deliveryFeeFeignClient.previewDeliveryFee(deliveryFeePreviewDTO);
+        if (!BasicErrorCode.SUCCESS.getCode().equals(deliveryFeePreviewResult.getCode())) {
+            throw new ServiceException(deliveryFeePreviewResult.getCode(), deliveryFeePreviewResult.getMessage());
+        }
+        DeliveryFeePreviewVO deliveryFeePreviewVO = deliveryFeePreviewResult.getData();
+        BigDecimal deliveryAmount = deliveryFeePreviewVO.getActualFee();
 
         // 计算应付总额 = 商品总额 + 配送费
         BigDecimal payAmount = goodsTotalAmount.add(deliveryAmount);
@@ -101,6 +120,7 @@ public class OrderServiceImpl implements OrderService {
         OrderPreviewVO previewVO = new OrderPreviewVO();
         previewVO.setDeliveryAmount(deliveryAmount);
         previewVO.setTotalAmount(payAmount);
+        previewVO.setDeliveryDistance(deliveryFeePreviewVO.getDistance());
         return previewVO;
     }
 
@@ -111,7 +131,7 @@ public class OrderServiceImpl implements OrderService {
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
         // 获取订单商品信息
-        List<OrderItemInfo> orderItemInfos = getOrderItemInfos(submitDTO, sessionInfo.getUserId());
+        List<OrderItemInfo> orderItemInfos = getOrderItemInfos(submitDTO, locationCode);
         
         // 验证库存
         validateStock(orderItemInfos);
@@ -191,14 +211,11 @@ public class OrderServiceImpl implements OrderService {
             orderItemPO.setSkuName(itemInfo.getSkuName());
             orderItemPO.setSmc(itemInfo.getSmc());
             orderItemPO.setSku(itemInfo.getSku());
-            orderItemPO.setCategoryId(itemInfo.getCategoryId());
-            orderItemPO.setCategoryName(itemInfo.getCategoryName());
             orderItemPO.setUnit(itemInfo.getUnit());
             orderItemPO.setProductPic(itemInfo.getProductPic());
             orderItemPO.setProductPicSmall(itemInfo.getProductPicSmall());
             orderItemPO.setQty(itemInfo.getQty());
             orderItemPO.setPrice(itemInfo.getPrice());
-            orderItemPO.setOriginalPrice(itemInfo.getOriginalPrice());
             orderItemPOs.add(orderItemPO);
         }
 
@@ -314,7 +331,7 @@ public class OrderServiceImpl implements OrderService {
     /**
      * 获取订单商品信息
      */
-    private List<OrderItemInfo> getOrderItemInfos(OrderSubmitDTO submitDTO, String userId) {
+    private List<OrderItemInfo> getOrderItemInfos(OrderSubmitDTO submitDTO, String locationCode) {
         List<OrderItemInfo> orderItemInfos = new ArrayList<>();
 
         // 处理直接提交的商品
@@ -338,6 +355,21 @@ public class OrderServiceImpl implements OrderService {
             Map<String, ItemVO> itemMap = response.getData().getData().stream()
                     .collect(Collectors.toMap(ItemVO::getSmc, item -> item));
 
+            // 查询库存与价格信息（按 locationCode + sku 检索）
+            StockSearchDTO stockSearchDTO = new StockSearchDTO();
+            stockSearchDTO.setLocationCode(Collections.singletonList(locationCode));
+            stockSearchDTO.setSku(skuIds);
+            stockSearchDTO.setPageNum(1);
+            stockSearchDTO.setPageSize(100);
+            R<PageResult<ListStockVO>> stockResp = productStockFeignClient.search(stockSearchDTO);
+            if (!BasicErrorCode.SUCCESS.getCode().equals(stockResp.getCode()) || stockResp.getData() == null) {
+                throw new ServiceException(stockResp.getCode(), stockResp.getMessage());
+            }
+            Map<String, ListStockVO> stockBySku = Optional.ofNullable(stockResp.getData().getData())
+                    .orElse(Collections.emptyList())
+                    .stream()
+                    .collect(Collectors.toMap(ListStockVO::getSku, s -> s));
+
             // 构建订单商品信息
             for (OrderSubmitDTO.OrderItem orderItem : submitDTO.getOrderItems()) {
                 ItemVO itemVO = itemMap.values().stream()
@@ -360,6 +392,12 @@ public class OrderServiceImpl implements OrderService {
                     throw new ServiceException(DistributionErrorCode.INVALID_SKU);
                 }
 
+                // 获取库存价格信息
+                ListStockVO stockVO = stockBySku.get(orderItem.getSku());
+                if (stockVO == null) {
+                    throw new ServiceException(BasicErrorCode.NO_RESOURCE, "库存或价格信息不存在: " + orderItem.getSku());
+                }
+
                 OrderItemInfo itemInfo = new OrderItemInfo();
                 itemInfo.setSmc(itemVO.getSmc());
                 itemInfo.setSku(orderItem.getSku());
@@ -369,93 +407,16 @@ public class OrderServiceImpl implements OrderService {
                 // 设置商品信息（这里简化处理，实际应该从商品详情中获取价格等信息）
                 itemInfo.setItemName(itemVO.getSmc());
                 itemInfo.setSkuName(orderItem.getSku());
-                itemInfo.setPrice(BigDecimal.valueOf(100)); // 临时价格，实际应该从商品详情获取
-                itemInfo.setOriginalPrice(BigDecimal.valueOf(120)); // 临时原价
-                
-                if (!CollectionUtils.isEmpty(itemVO.getCategories())) {
-                    itemInfo.setCategoryId(itemVO.getCategories().get(0).getId().toString());
-                    itemInfo.setCategoryName(itemVO.getCategories().get(0).getName());
-                }
-                
+                itemInfo.setPrice(stockVO.getPrice());
+                itemInfo.setAvailableQuantity(stockVO.getQuantity());
+
                 if (itemVO.getUnitGroup() != null) {
                     itemInfo.setUnit(itemVO.getUnitGroup().getName());
                 }
-                
+
                 if (!CollectionUtils.isEmpty(itemVO.getImages())) {
-                    itemInfo.setProductPic(itemVO.getImages().get(0));
-                    itemInfo.setProductPicSmall(itemVO.getImages().get(0));
-                }
-
-                orderItemInfos.add(itemInfo);
-            }
-        }
-
-        // 处理购物车商品
-        if (!CollectionUtils.isEmpty(submitDTO.getCartItemIds())) {
-            List<CartItemPO> cartItems = cartItemMapper.selectList(
-                    new QueryWrapper<CartItemPO>()
-                            .in("id", submitDTO.getCartItemIds())
-                            .eq("cart_id", userId));
-
-            if (cartItems.size() != submitDTO.getCartItemIds().size()) {
-                throw new ServiceException(BasicErrorCode.NO_RESOURCE);
-            }
-
-            // 获取SKU列表
-            List<String> skuIds = cartItems.stream()
-                    .map(CartItemPO::getSku)
-                    .collect(Collectors.toList());
-
-            // 查询商品信息
-            ItemSearchDTO searchDTO = new ItemSearchDTO();
-            searchDTO.setSku(skuIds);
-            searchDTO.setPageSize(100);
-            searchDTO.setPageNum(1);
-
-            R<PageResult<ItemVO>> response = productItemFeignClient.search(searchDTO);
-            if (!BasicErrorCode.SUCCESS.getCode().equals(response.getCode()) || response.getData() == null) {
-                throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, response.getMessage());
-            }
-
-            Map<String, ItemVO> itemMap = response.getData().getData().stream()
-                    .collect(Collectors.toMap(ItemVO::getSmc, item -> item));
-
-            // 构建订单商品信息
-            for (CartItemPO cartItem : cartItems) {
-                ItemVO itemVO = itemMap.values().stream()
-                        .filter(item -> item.getSkus().stream()
-                                .anyMatch(sku -> sku.getSku().equals(cartItem.getSku())))
-                        .findFirst()
-                        .orElse(null);
-
-                if (itemVO == null) {
-                    throw new ServiceException(DistributionErrorCode.ITEM_NOT_FOUND);
-                }
-
-                OrderItemInfo itemInfo = new OrderItemInfo();
-                itemInfo.setSmc(itemVO.getSmc());
-                itemInfo.setSku(cartItem.getSku());
-                itemInfo.setQty(cartItem.getQuantity());
-                itemInfo.setStockable(itemVO.getStockable());
-                
-                // 设置商品信息
-                itemInfo.setItemName(itemVO.getSmc());
-                itemInfo.setSkuName(cartItem.getSku());
-                itemInfo.setPrice(cartItem.getEntryPrice());
-                itemInfo.setOriginalPrice(cartItem.getEntryPrice());
-                
-                if (!CollectionUtils.isEmpty(itemVO.getCategories())) {
-                    itemInfo.setCategoryId(itemVO.getCategories().get(0).getId().toString());
-                    itemInfo.setCategoryName(itemVO.getCategories().get(0).getName());
-                }
-                
-                if (itemVO.getUnitGroup() != null) {
-                    itemInfo.setUnit(itemVO.getUnitGroup().getName());
-                }
-                
-                if (!CollectionUtils.isEmpty(itemVO.getImages())) {
-                    itemInfo.setProductPic(itemVO.getImages().get(0));
-                    itemInfo.setProductPicSmall(itemVO.getImages().get(0));
+                    itemInfo.setProductPic(itemVO.getImages().getFirst());
+                    itemInfo.setProductPicSmall(itemVO.getImages().getFirst());
                 }
 
                 orderItemInfos.add(itemInfo);
@@ -488,10 +449,15 @@ public class OrderServiceImpl implements OrderService {
      */
     private void validateStock(List<OrderItemInfo> orderItemInfos) {
         for (OrderItemInfo itemInfo : orderItemInfos) {
-            if (itemInfo.getStockable()) {
+            if (Boolean.TRUE.equals(itemInfo.getStockable())) {
                 // 对于库存商品，需要验证库存是否充足
-                // 这里简化处理，实际应该调用库存服务验证
-                log.info("验证库存: SKU={}, 数量={}", itemInfo.getSku(), itemInfo.getQty());
+                if (itemInfo.getAvailableQuantity() == null) {
+                    throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "缺少库存信息: " + itemInfo.getSku());
+                }
+                if (itemInfo.getAvailableQuantity().compareTo(new BigDecimal(itemInfo.getQty())) < 0) {
+                    throw new ServiceException(BasicErrorCode.PARAMERROR, "库存不足: " + itemInfo.getSku());
+                }
+                log.info("验证库存: locationSku={}, 需要数量={}, 可用={}", itemInfo.getLocationSku(), itemInfo.getQty(), itemInfo.getAvailableQuantity());
             }
         }
     }
@@ -505,7 +471,7 @@ public class OrderServiceImpl implements OrderService {
         for (OrderItemInfo itemInfo : orderItemInfos) {
             if (itemInfo.getStockable()) {
                 BatchStockAdjustDTO.ItemDTO itemDTO = new BatchStockAdjustDTO.ItemDTO();
-                itemDTO.setLocationSku(itemInfo.getSku()); // 这里简化处理，实际应该包含仓库信息
+                itemDTO.setLocationSku(itemInfo.getLocationSku());
                 itemDTO.setOperation(BatchStockAdjustDTO.Operation.SUBTRACT);
                 itemDTO.setQuantity(new BigDecimal(itemInfo.getQty()));
                 stockAdjustItems.add(itemDTO);
@@ -568,14 +534,11 @@ public class OrderServiceImpl implements OrderService {
             itemVO.setSkuName(itemPO.getSkuName());
             itemVO.setSmc(itemPO.getSmc());
             itemVO.setSku(itemPO.getSku());
-            itemVO.setCategoryId(itemPO.getCategoryId());
-            itemVO.setCategoryName(itemPO.getCategoryName());
             itemVO.setUnit(itemPO.getUnit());
             itemVO.setProductPic(itemPO.getProductPic());
             itemVO.setProductPicSmall(itemPO.getProductPicSmall());
             itemVO.setQty(itemPO.getQty());
             itemVO.setPrice(itemPO.getPrice());
-            itemVO.setOriginalPrice(itemPO.getOriginalPrice());
             itemVO.setRemark(itemPO.getRemark());
             return itemVO;
         }).collect(Collectors.toList());
@@ -1075,14 +1038,11 @@ public class OrderServiceImpl implements OrderService {
             itemVO.setSkuName(itemPO.getSkuName());
             itemVO.setSmc(itemPO.getSmc());
             itemVO.setSku(itemPO.getSku());
-            itemVO.setCategoryId(itemPO.getCategoryId());
-            itemVO.setCategoryName(itemPO.getCategoryName());
             itemVO.setUnit(itemPO.getUnit());
             itemVO.setProductPic(itemPO.getProductPic());
             itemVO.setProductPicSmall(itemPO.getProductPicSmall());
             itemVO.setQty(itemPO.getQty());
             itemVO.setPrice(itemPO.getPrice());
-            itemVO.setOriginalPrice(itemPO.getOriginalPrice());
             itemVO.setRemark(itemPO.getRemark());
             itemVO.setInnerRemark(itemPO.getInnerRemark());
             return itemVO;
@@ -1161,10 +1121,6 @@ public class OrderServiceImpl implements OrderService {
             // 添加SKU名称
             if (StringUtils.hasText(itemInfo.getSkuName())) {
                 keywords.add(itemInfo.getSkuName());
-            }
-            // 添加分类名称
-            if (StringUtils.hasText(itemInfo.getCategoryName())) {
-                keywords.add(itemInfo.getCategoryName());
             }
         }
         
@@ -1265,7 +1221,6 @@ public class OrderServiceImpl implements OrderService {
     @Setter
     @Getter
     private static class OrderItemInfo {
-        // Getters and Setters
         private String smc;
         private String sku;
         private Integer qty;
@@ -1273,12 +1228,10 @@ public class OrderServiceImpl implements OrderService {
         private String itemName;
         private String skuName;
         private BigDecimal price;
-        private BigDecimal originalPrice;
-        private String categoryId;
-        private String categoryName;
+        private String locationSku;
+        private BigDecimal availableQuantity; // 可用库存
         private String unit;
         private String productPic;
         private String productPicSmall;
-
     }
 }

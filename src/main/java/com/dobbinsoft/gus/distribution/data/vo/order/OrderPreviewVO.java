@@ -14,6 +14,9 @@ public class OrderPreviewVO {
     @Schema(description = "物流费用", example = "0.00")
     private BigDecimal deliveryAmount;
 
+    @Schema(description = "配送距离（米）")
+    private Integer deliveryDistance;
+
     @Schema(description = "订单总金额", example = "100.00")
     private BigDecimal totalAmount;
 
