@@ -59,8 +59,9 @@ public class OrderController {
     })
     public R<OrderPreviewVO> preview(
             @Parameter(description = "订单提交信息", required = true)
-            @Valid @RequestBody OrderSubmitDTO submitDTO) {
-        OrderPreviewVO previewVO = orderService.preview(submitDTO);
+            @Valid @RequestBody OrderSubmitDTO submitDTO,
+            @RequestHeader(DistributionConstants.LOCATION_HEADER) String locationCode) {
+        OrderPreviewVO previewVO = orderService.preview(submitDTO, locationCode);
         return R.success(previewVO);
     }
 

@@ -103,12 +103,6 @@ public class OrderVO {
         @Schema(description = "SKU", example = "IPHONE15_128GB_BLACK")
         private String sku;
         
-        @Schema(description = "分类ID", example = "category_1")
-        private String categoryId;
-        
-        @Schema(description = "分类名称", example = "手机数码")
-        private String categoryName;
-        
         @Schema(description = "商品单位", example = "台")
         private String unit;
         

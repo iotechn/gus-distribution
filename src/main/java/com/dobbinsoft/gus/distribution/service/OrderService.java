@@ -23,10 +23,12 @@ public interface OrderService {
 
     /**
      * 订单预览
-     * @param submitDTO 订单提交信息
+     *
+     * @param submitDTO    订单提交信息
+     * @param locationCode
      * @return 订单预览信息
      */
-    OrderPreviewVO preview(OrderSubmitDTO submitDTO);
+    OrderPreviewVO preview(OrderSubmitDTO submitDTO, String locationCode);
 
     /**
      * 提交订单

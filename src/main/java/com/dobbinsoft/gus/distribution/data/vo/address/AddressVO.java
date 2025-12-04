@@ -3,6 +3,7 @@ package com.dobbinsoft.gus.distribution.data.vo.address;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
 @Data
@@ -47,4 +48,10 @@ public class AddressVO {
 
     @Schema(description = "修改时间", example = "2024-01-01T00:00:00Z")
     private ZonedDateTime modifiedTime;
+
+    @Schema(description = "纬度", requiredMode = Schema.RequiredMode.REQUIRED, example = "39.9142")
+    private BigDecimal latitude;
+
+    @Schema(description = "经度", requiredMode = Schema.RequiredMode.REQUIRED, example = "116.4174")
+    private BigDecimal longitude;
 } 

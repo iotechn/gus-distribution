@@ -5,12 +5,15 @@ import com.dobbinsoft.gus.distribution.data.dto.comment.CommentCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentQueryDTO;
 import com.dobbinsoft.gus.distribution.data.vo.comment.CommentVO;
 import com.dobbinsoft.gus.distribution.service.CommentService;
+import com.dobbinsoft.gus.web.exception.BasicErrorCode;
+import com.dobbinsoft.gus.web.exception.ServiceException;
 import com.dobbinsoft.gus.web.vo.R;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,10 +55,13 @@ public class CommentController {
     @GetMapping("/product")
     @Operation(summary = "根据商品查询评论", description = "分页查询指定商品的评论")
     public R<PageResult<CommentVO>> getCommentsByProduct(
-            @Parameter(description = "商品款号") @RequestParam String smc,
-            @Parameter(description = "SKU") @RequestParam String sku,
+            @Parameter(description = "商品款号") @RequestParam(required = false) String smc,
+            @Parameter(description = "SKU") @RequestParam(required = false) String sku,
             @Parameter(description = "页码") @RequestParam Integer pageNum,
             @Parameter(description = "每页数量") @RequestParam Integer pageSize) {
+        if (StringUtils.isEmpty(smc) || StringUtils.isEmpty(sku)) {
+            throw new ServiceException(BasicErrorCode.PARAMERROR);
+        }
         PageResult<CommentVO> page = commentService.getCommentsByProduct(smc, sku, pageNum, pageSize);
         return R.success(page);
     }
