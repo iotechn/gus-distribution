@@ -61,7 +61,11 @@ public class MapperAdapter<M extends BaseMapper<T>, T extends Pk> {
     }
 
     public int deleteById(Serializable id) {
-        return baseMapper.deleteById(id);
+        return baseMapper.delete(new QueryWrapper<T>().eq("id", id));
+    }
+
+    public int deleteById(Serializable id, String idName) {
+        return baseMapper.delete(new QueryWrapper<T>().eq(idName, id));
     }
 
     public int deleteByIds(Collection<? extends Serializable> ids) {

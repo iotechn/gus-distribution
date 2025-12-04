@@ -46,8 +46,12 @@ public class AddressServiceImpl implements AddressService {
         addressPO.setCreatedBy(sessionInfo.getUserId());
         addressPO.setModifiedBy(sessionInfo.getUserId());
         
-        // 如果设置为默认地址，需要将其他地址设为非默认
-        if (Boolean.TRUE.equals(upsertDTO.getIsDefault())) {
+        // 如果该用户还没有任何地址，则自动设为默认地址
+        Long addressCount = addressMapper.selectCount(new QueryWrapper<AddressPO>().eq("user_id", sessionInfo.getUserId()));
+        boolean willBeDefault = addressCount == 0 || Boolean.TRUE.equals(upsertDTO.getIsDefault());
+        if (willBeDefault) {
+            // 设为默认并清理其他默认（若是首个地址则不会有变更）
+            addressPO.setIsDefault(true);
             clearDefaultAddress(sessionInfo.getUserId());
         }
         
