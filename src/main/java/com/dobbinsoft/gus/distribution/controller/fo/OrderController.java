@@ -1,6 +1,7 @@
 package com.dobbinsoft.gus.distribution.controller.fo;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.data.constant.DistributionConstants;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
 import com.dobbinsoft.gus.web.vo.R;
 import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
@@ -74,8 +75,9 @@ public class OrderController {
     })
     public R<OrderVO> submit(
             @Parameter(description = "订单提交信息", required = true)
-            @Valid @RequestBody OrderSubmitDTO submitDTO) {
-        OrderVO orderVO = orderService.submit(submitDTO);
+            @Valid @RequestBody OrderSubmitDTO submitDTO,
+            @RequestHeader(DistributionConstants.LOCATION_HEADER) String locationCode) {
+        OrderVO orderVO = orderService.submit(submitDTO, locationCode);
         return R.success(orderVO);
     }
 

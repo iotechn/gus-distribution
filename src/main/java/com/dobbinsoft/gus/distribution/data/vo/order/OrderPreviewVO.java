@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 public class OrderPreviewVO {
 
     @Schema(description = "物流费用", example = "0.00")
-    private BigDecimal logisticsAmount;
+    private BigDecimal deliveryAmount;
 
     @Schema(description = "订单总金额", example = "100.00")
     private BigDecimal totalAmount;

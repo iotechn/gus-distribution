@@ -2,7 +2,6 @@ package com.dobbinsoft.gus.distribution.service;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
-import com.dobbinsoft.gus.distribution.data.dto.order.OrderExpressDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderPrepayDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApplyDTO;
@@ -31,10 +30,12 @@ public interface OrderService {
 
     /**
      * 提交订单
-     * @param submitDTO 订单提交信息
+     *
+     * @param submitDTO    订单提交信息
+     * @param locationCode
      * @return 订单信息
      */
-    OrderVO submit(OrderSubmitDTO submitDTO);
+    OrderVO submit(OrderSubmitDTO submitDTO, String locationCode);
 
     /**
      * 订单预支付
@@ -65,13 +66,6 @@ public interface OrderService {
      * @return 订单详情
      */
     OrderDetailVO getDetailByOrderNo(String orderNo);
-
-    /**
-     * 订单发货
-     * @param orderNo 订单号
-     * @param expressDTO 发货信息
-     */
-    void express(String orderNo, OrderExpressDTO expressDTO);
 
     /**
      * 确认收货

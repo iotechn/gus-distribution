@@ -3,7 +3,13 @@ package com.dobbinsoft.gus.distribution.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
-import com.dobbinsoft.gus.distribution.client.gus.logistics.ExpressFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.location.LocationFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.location.model.LocationVO;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.DeliveryFeeFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.DeliveryOrderFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryFeePreviewDTO;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryFeePreviewVO;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
 import com.dobbinsoft.gus.distribution.client.gus.payment.TransactionFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionCreateDTO;
 import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionStatus;
@@ -13,7 +19,6 @@ import com.dobbinsoft.gus.distribution.client.gus.product.ProductStockFeignClien
 import com.dobbinsoft.gus.distribution.client.gus.product.model.BatchStockAdjustDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemSearchDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
-import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.*;
 import com.dobbinsoft.gus.distribution.data.dto.session.FoSessionInfoDTO;
 import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
@@ -22,7 +27,6 @@ import com.dobbinsoft.gus.distribution.data.enums.RefundStatusType;
 import com.dobbinsoft.gus.distribution.data.enums.UserSrcType;
 import com.dobbinsoft.gus.distribution.data.exception.DistributionErrorCode;
 import com.dobbinsoft.gus.distribution.data.po.*;
-import com.dobbinsoft.gus.distribution.data.vo.express.ExpressOrderVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.*;
 import com.dobbinsoft.gus.distribution.mapper.*;
 import com.dobbinsoft.gus.distribution.service.OrderService;
@@ -60,42 +64,49 @@ public class OrderServiceImpl implements OrderService {
     private final UserSocialMapper userSocialMapper;
     private final ProductItemFeignClient productItemFeignClient;
     private final ProductStockFeignClient productStockFeignClient;
-    private final ExpressFeignClient expressFeignClient;
     private final TransactionFeignClient transactionFeignClient;
+    private final DeliveryFeeFeignClient deliveryFeeFeignClient;
+    private final DeliveryOrderFeignClient deliveryOrderFeignClient;
+    private final LocationFeignClient locationFeignClient;
 
     @Override
     public OrderPreviewVO preview(OrderSubmitDTO submitDTO) {
         // 获取用户信息
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
-        // 获取订单商品信息
+        // 获取订单商品信息（与提交逻辑一致）
         List<OrderItemInfo> orderItemInfos = getOrderItemInfos(submitDTO, sessionInfo.getUserId());
-        
+
         // 计算商品总金额
-        BigDecimal totalAmount = orderItemInfos.stream()
+        BigDecimal goodsTotalAmount = orderItemInfos.stream()
                 .map(item -> item.getPrice().multiply(new BigDecimal(item.getQty())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // 校验并获取收货地址（与提交逻辑保持一致）
+        AddressPO addressPO = addressMapper.selectById(submitDTO.getAddressId());
+        if (addressPO == null || !addressPO.getUserId().equals(sessionInfo.getUserId())) {
+            throw new ServiceException(BasicErrorCode.NO_RESOURCE);
+        }
 
-        // 物流费用（暂时为0）
-        BigDecimal logisticsAmount = BigDecimal.ZERO;
+        // 配送费预估：由于预览阶段无法获取门店编码，这里暂以0返回
+        // 如需精准计算，请在Controller中同submit一样通过请求头传入门店locationCode，并扩展Service接口
+        BigDecimal deliveryAmount = BigDecimal.ZERO;
 
-        // 计算支付金额
-        BigDecimal payAmount = totalAmount.add(logisticsAmount);
+        // 计算应付总额 = 商品总额 + 配送费
+        BigDecimal payAmount = goodsTotalAmount.add(deliveryAmount);
         if (payAmount.compareTo(BigDecimal.ZERO) < 0) {
             payAmount = BigDecimal.ZERO;
         }
 
         OrderPreviewVO previewVO = new OrderPreviewVO();
-        previewVO.setLogisticsAmount(logisticsAmount);
+        previewVO.setDeliveryAmount(deliveryAmount);
         previewVO.setTotalAmount(payAmount);
-
         return previewVO;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public OrderVO submit(OrderSubmitDTO submitDTO) {
+    public OrderVO submit(OrderSubmitDTO submitDTO, String locationCode) {
         // 获取用户信息
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
@@ -110,20 +121,38 @@ public class OrderServiceImpl implements OrderService {
                 .map(item -> item.getPrice().multiply(new BigDecimal(item.getQty())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 物流费用（暂时为0）
-        BigDecimal logisticsAmount = BigDecimal.ZERO;
-
-        // 计算支付金额
-        BigDecimal payAmount = totalAmount.add(logisticsAmount);
-        if (payAmount.compareTo(BigDecimal.ZERO) < 0) {
-            payAmount = BigDecimal.ZERO;
-        }
-
         // 获取收货地址
         AddressPO addressPO = addressMapper.selectById(submitDTO.getAddressId());
         if (addressPO == null || !addressPO.getUserId().equals(sessionInfo.getUserId())) {
             throw new ServiceException(BasicErrorCode.NO_RESOURCE);
         }
+
+        // 物流费用（暂时为0）
+        R<LocationVO> locationResult = locationFeignClient.detail(locationCode);
+        if (!BasicErrorCode.SUCCESS.getCode().equals(locationResult.getCode())) {
+            throw new ServiceException(locationResult.getCode(), locationResult.getMessage());
+        }
+        LocationVO locationVO = locationResult.getData();
+        DeliveryFeePreviewDTO deliveryFeePreviewDTO = new DeliveryFeePreviewDTO();
+        deliveryFeePreviewDTO.setLocationCode(locationCode);
+        deliveryFeePreviewDTO.setStartLatitude(locationVO.getLatitude());
+        deliveryFeePreviewDTO.setStartLongitude(locationVO.getLongitude());
+        deliveryFeePreviewDTO.setEndLatitude(addressPO.getLatitude());
+        deliveryFeePreviewDTO.setEndLongitude(addressPO.getLongitude());
+
+        R<DeliveryFeePreviewVO> deliveryFeePreviewResult = deliveryFeeFeignClient.previewDeliveryFee(deliveryFeePreviewDTO);
+        if (!BasicErrorCode.SUCCESS.getCode().equals(deliveryFeePreviewResult.getCode())) {
+            throw new ServiceException(deliveryFeePreviewResult.getCode(), deliveryFeePreviewResult.getMessage());
+        }
+        DeliveryFeePreviewVO deliveryFeePreviewVO = deliveryFeePreviewResult.getData();
+
+        // 计算支付金额
+        BigDecimal payAmount = totalAmount.add(deliveryFeePreviewVO.getActualFee());
+        if (payAmount.compareTo(BigDecimal.ZERO) < 0) {
+            payAmount = BigDecimal.ZERO;
+        }
+
+
 
         // 创建订单
         OrderPO orderPO = new OrderPO();
@@ -133,7 +162,6 @@ public class OrderServiceImpl implements OrderService {
         orderPO.setStatus(OrderStatusType.UNPAY.getCode());
         orderPO.setAmount(totalAmount);
         orderPO.setPayAmount(payAmount);
-        orderPO.setLogisticsEstimatedPrice(logisticsAmount);
         orderPO.setRemark(submitDTO.getRemark());
 
         // 构建搜索关键字（冗余商品信息用于搜索）
@@ -293,7 +321,7 @@ public class OrderServiceImpl implements OrderService {
         if (!CollectionUtils.isEmpty(submitDTO.getOrderItems())) {
             // 获取SKU列表
             List<String> skuIds = submitDTO.getOrderItems().stream()
-                    .map(OrderSubmitDTO.OrderItem::getSkuId)
+                    .map(OrderSubmitDTO.OrderItem::getSku)
                     .collect(Collectors.toList());
 
             // 查询商品信息
@@ -314,7 +342,7 @@ public class OrderServiceImpl implements OrderService {
             for (OrderSubmitDTO.OrderItem orderItem : submitDTO.getOrderItems()) {
                 ItemVO itemVO = itemMap.values().stream()
                         .filter(item -> item.getSkus().stream()
-                                .anyMatch(sku -> sku.getSku().equals(orderItem.getSkuId())))
+                                .anyMatch(sku -> sku.getSku().equals(orderItem.getSku())))
                         .findFirst()
                         .orElse(null);
 
@@ -324,7 +352,7 @@ public class OrderServiceImpl implements OrderService {
 
                 // 获取SKU信息
                 ItemVO.ItemSkuVO skuVO = itemVO.getSkus().stream()
-                        .filter(sku -> sku.getSku().equals(orderItem.getSkuId()))
+                        .filter(sku -> sku.getSku().equals(orderItem.getSku()))
                         .findFirst()
                         .orElse(null);
 
@@ -334,13 +362,13 @@ public class OrderServiceImpl implements OrderService {
 
                 OrderItemInfo itemInfo = new OrderItemInfo();
                 itemInfo.setSmc(itemVO.getSmc());
-                itemInfo.setSku(orderItem.getSkuId());
+                itemInfo.setSku(orderItem.getSku());
                 itemInfo.setQty(orderItem.getQty());
                 itemInfo.setStockable(itemVO.getStockable());
                 
                 // 设置商品信息（这里简化处理，实际应该从商品详情中获取价格等信息）
                 itemInfo.setItemName(itemVO.getSmc());
-                itemInfo.setSkuName(orderItem.getSkuId());
+                itemInfo.setSkuName(orderItem.getSku());
                 itemInfo.setPrice(BigDecimal.valueOf(100)); // 临时价格，实际应该从商品详情获取
                 itemInfo.setOriginalPrice(BigDecimal.valueOf(120)); // 临时原价
                 
@@ -517,7 +545,7 @@ public class OrderServiceImpl implements OrderService {
         orderVO.setPayMethod(orderPO.getPayMethod());
         orderVO.setPayNo(orderPO.getPayNo());
         orderVO.setCreateTime(ZonedDateTime.now()); // 临时设置，实际应该从orderPO获取
-        orderVO.setDeliveryTime(orderPO.getExpressTime());
+        orderVO.setDeliveryTime(orderPO.getDeliveryTime());
         orderVO.setConfirmTime(orderPO.getConfirmTime());
 
         // 设置地址信息
@@ -633,48 +661,6 @@ public class OrderServiceImpl implements OrderService {
         }
         
         return convertToOrderDetailVO(orderPO);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void express(String orderNo, OrderExpressDTO expressDTO) {
-        OrderPO orderPO = orderMapper.selectOne(
-            new QueryWrapper<OrderPO>()
-                .eq("order_no", orderNo)
-        );
-        if (orderPO == null) {
-            throw new ServiceException(BasicErrorCode.NO_RESOURCE);
-        }
-        
-        // 检查订单状态是否可以发货
-        if (!OrderStatusType.WAIT_STOCK.getCode().equals(orderPO.getStatus())) {
-            throw new ServiceException(DistributionErrorCode.ORDER_STATUS_INVALID, "订单状态不允许发货");
-        }
-
-        // 查询物流单是否已存在
-        String mobile = orderPO.getAddress().getTelNumber();
-        R<ExpressOrderVO> expressResult = expressFeignClient.get(
-                orderNo,
-                expressDTO.getLogisticsCompanyCode(),
-                expressDTO.getLogisticsNo(),
-                mobile
-        );
-
-        if (!BasicErrorCode.SUCCESS.getCode().equals(expressResult.getCode())) {
-            throw new ServiceException(expressResult.getCode(), expressResult.getMessage());
-        }
-
-        ExpressOrderVO data = expressResult.getData();
-        orderPO.setLogisticsCompany(data.getLpName());
-        // 更新订单信息
-        orderPO.setStatus(OrderStatusType.WAIT_CONFIRM.getCode());
-        orderPO.setLogisticsCompanyCode(expressDTO.getLogisticsCompanyCode().name());
-        orderPO.setLogisticsNo(expressDTO.getLogisticsNo());
-        orderPO.setExpressTime(ZonedDateTime.now());
-
-        orderMapper.updateById(orderPO);
-        log.info("订单发货成功: orderNo={}, logisticsNo={}", 
-            orderNo, expressDTO.getLogisticsNo());
     }
 
     @Override
@@ -1058,12 +1044,9 @@ public class OrderServiceImpl implements OrderService {
         listVO.setInnerRemark(orderPO.getInnerRemark());
         listVO.setPayMethod(orderPO.getPayMethod());
         listVO.setPayNo(orderPO.getPayNo());
-        listVO.setLogisticsCompanyCode(orderPO.getLogisticsCompanyCode());
-        listVO.setLogisticsCompany(orderPO.getLogisticsCompany());
-        listVO.setLogisticsNo(orderPO.getLogisticsNo());
-        listVO.setLogisticsEstimatedPrice(orderPO.getLogisticsEstimatedPrice());
         listVO.setCreateTime(orderPO.getCreatedTime());
-        listVO.setDeliveryTime(orderPO.getExpressTime());
+        listVO.setDeliveryNo(orderPO.getDeliveryNo());
+        listVO.setDeliveryTime(orderPO.getDeliveryTime());
         listVO.setConfirmTime(orderPO.getConfirmTime());
 
         // 设置地址信息
@@ -1128,10 +1111,7 @@ public class OrderServiceImpl implements OrderService {
         detailVO.setInnerRemark(listVO.getInnerRemark());
         detailVO.setPayMethod(listVO.getPayMethod());
         detailVO.setPayNo(listVO.getPayNo());
-        detailVO.setLogisticsCompanyCode(listVO.getLogisticsCompanyCode());
-        detailVO.setLogisticsCompany(listVO.getLogisticsCompany());
-        detailVO.setLogisticsNo(listVO.getLogisticsNo());
-        detailVO.setLogisticsEstimatedPrice(listVO.getLogisticsEstimatedPrice());
+        detailVO.setDeliveryNo(listVO.getDeliveryNo());
         detailVO.setCreateTime(listVO.getCreateTime());
         detailVO.setDeliveryTime(listVO.getDeliveryTime());
         detailVO.setConfirmTime(listVO.getConfirmTime());
@@ -1139,20 +1119,14 @@ public class OrderServiceImpl implements OrderService {
         detailVO.setOrderItems(listVO.getOrderItems());
 
         // 尝试获取物流信息（仅当订单已发货且有物流单号时）
-        if (orderPO.getExpressTime() != null && StringUtils.hasText(orderPO.getLogisticsNo())) {
-            try {
-                R<ExpressOrderVO> expressResult = expressFeignClient.get(
-                    null, null, orderPO.getLogisticsNo(), null);
-                if (expressResult != null && "200".equals(expressResult.getCode()) && expressResult.getData() != null) {
-                    detailVO.setExpressOrder(expressResult.getData());
-                }
-            } catch (Exception e) {
-                log.warn("获取物流信息失败，订单号: {}, 物流单号: {}, 错误: {}", 
-                    orderPO.getOrderNo(), orderPO.getLogisticsNo(), e.getMessage());
-                // 物流信息获取失败时不设置，保持为null
+        if (detailVO.getDeliveryNo() != null) {
+            R<DeliveryOrderVO> deliveryOrderResult = deliveryOrderFeignClient.getDeliveryOrderByDeliveryNo(detailVO.getDeliveryNo());
+            if (!BasicErrorCode.SUCCESS.getCode().equals(deliveryOrderResult.getCode())) {
+                throw new ServiceException(deliveryOrderResult.getCode(), deliveryOrderResult.getMessage());
             }
+            DeliveryOrderVO data = deliveryOrderResult.getData();
+            detailVO.setDeliveryOrder(data);
         }
-
         // TODO: 查询退款信息
         detailVO.setRefunds(new ArrayList<>());
 
@@ -1276,7 +1250,7 @@ public class OrderServiceImpl implements OrderService {
         orderPO.setPayMethod(transactionUpdateEventDTO.getProvider().getType());
         orderPO.setPayNo(transactionUpdateEventDTO.getTransactionNo());
         if (transactionUpdateEventDTO.getPaymentTime() != null) {
-            orderPO.setPayTime(transactionUpdateEventDTO.getPaymentTime().toLocalDateTime());
+            orderPO.setPayTime(transactionUpdateEventDTO.getPaymentTime());
         }
 
         // 更新订单信息
