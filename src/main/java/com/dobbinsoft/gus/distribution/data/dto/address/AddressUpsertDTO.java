@@ -1,5 +1,7 @@
 package com.dobbinsoft.gus.distribution.data.dto.address;
 
+import java.math.BigDecimal;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -43,4 +45,10 @@ public class AddressUpsertDTO {
 
     @Schema(description = "地址标签", example = "家", allowableValues = {"家", "公司", "学校", "其他"})
     private String label;
+
+    @Schema(description = "纬度", requiredMode = Schema.RequiredMode.REQUIRED, example = "39.9142")
+    private BigDecimal latitude;
+    
+    @Schema(description = "经度", requiredMode = Schema.RequiredMode.REQUIRED, example = "116.4174")
+    private BigDecimal longitude;
 } 

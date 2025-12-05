@@ -155,6 +155,7 @@ public class OrderServiceImpl implements OrderService {
         LocationVO locationVO = locationResult.getData();
         DeliveryFeePreviewDTO deliveryFeePreviewDTO = new DeliveryFeePreviewDTO();
         deliveryFeePreviewDTO.setLocationCode(locationCode);
+        deliveryFeePreviewDTO.setOrderAmount(totalAmount);
         deliveryFeePreviewDTO.setStartLatitude(locationVO.getLatitude());
         deliveryFeePreviewDTO.setStartLongitude(locationVO.getLongitude());
         deliveryFeePreviewDTO.setEndLatitude(addressPO.getLatitude());
