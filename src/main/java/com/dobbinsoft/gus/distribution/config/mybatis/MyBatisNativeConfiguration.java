@@ -10,6 +10,8 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.handlers.CompositeEnumTypeHandler;
 import com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler;
+import com.baomidou.mybatisplus.core.override.MybatisMapperProxy;
+import com.baomidou.mybatisplus.core.metadata.MapperProxyMetadata;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.core.toolkit.support.SerializedLambda;
 import com.baomidou.mybatisplus.extension.handlers.FastjsonTypeHandler;
@@ -22,6 +24,7 @@ import org.apache.ibatis.annotations.DeleteProvider;
 import org.apache.ibatis.annotations.InsertProvider;
 import org.apache.ibatis.annotations.SelectProvider;
 import org.apache.ibatis.annotations.UpdateProvider;
+import org.apache.ibatis.binding.MapperProxy;
 import org.apache.ibatis.cache.decorators.FifoCache;
 import org.apache.ibatis.cache.decorators.LruCache;
 import org.apache.ibatis.cache.decorators.SoftCache;
@@ -135,6 +138,21 @@ public class MyBatisNativeConfiguration {
             hints.reflection().registerType(SFunction.class);
             hints.reflection().registerType(SerializedLambda.class);
             hints.reflection().registerType(java.lang.invoke.SerializedLambda.class);
+
+            // MyBatis-Plus default method support requires access to MybatisMapperProxy fields
+            hints.reflection().registerType(MybatisMapperProxy.class,
+                    MemberCategory.DECLARED_FIELDS,
+                    MemberCategory.INVOKE_DECLARED_METHODS,
+                    MemberCategory.INVOKE_DECLARED_CONSTRUCTORS);
+            hints.reflection().registerType(MapperProxyMetadata.class,
+                    MemberCategory.DECLARED_FIELDS,
+                    MemberCategory.INVOKE_DECLARED_METHODS,
+                    MemberCategory.INVOKE_DECLARED_CONSTRUCTORS);
+            // Also include MyBatis core MapperProxy just in case MP delegates
+            hints.reflection().registerType(MapperProxy.class,
+                    MemberCategory.DECLARED_FIELDS,
+                    MemberCategory.INVOKE_DECLARED_METHODS,
+                    MemberCategory.INVOKE_DECLARED_CONSTRUCTORS);
 
             hints.proxies().registerJdkProxy(StatementHandler.class);
             hints.proxies().registerJdkProxy(Executor.class);
