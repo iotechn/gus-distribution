@@ -104,6 +104,13 @@ public interface OrderService {
      */
     void cancelRefund(String refundId);
 
+    /**
+     * 取消订单（仅未付款时可取消）
+     * @param orderNo 订单号
+     * @param locationCode 门店编码（用于回补库存）
+     */
+    void cancelOrder(String orderNo);
+
     // ========== 前台订单查询接口 ==========
 
     /**

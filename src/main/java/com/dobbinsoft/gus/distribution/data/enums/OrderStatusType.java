@@ -48,6 +48,14 @@ public enum OrderStatusType implements BaseEnums<Integer> {
         }
     }
 
+    /**
+     * 判断订单是否可由用户取消
+     */
+    public static boolean cancelable(int orderStatus) {
+        // 仅未付款订单允许取消
+        return orderStatus == UNPAY.getCode();
+    }
+
     public static OrderStatusType getStatusByCode(int orderStatus) {
         for (OrderStatusType statusType : values()) {
             if (statusType.code == orderStatus) {

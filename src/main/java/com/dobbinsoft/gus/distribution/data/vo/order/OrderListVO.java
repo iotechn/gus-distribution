@@ -92,6 +92,12 @@ public class OrderListVO {
         
         @Schema(description = "收件人手机号", example = "13800138000")
         private String telNumber;
+
+        @Schema(description = "纬度", requiredMode = Schema.RequiredMode.REQUIRED, example = "39.9142")
+        private BigDecimal latitude;
+    
+        @Schema(description = "经度", requiredMode = Schema.RequiredMode.REQUIRED, example = "116.4174")
+        private BigDecimal longitude;
     }
     
     @Getter

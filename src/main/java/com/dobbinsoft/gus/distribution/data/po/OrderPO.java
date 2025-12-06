@@ -73,6 +73,9 @@ public class OrderPO extends BasePO {
     @Schema(description = "搜索关键字（冗余字段，用于搜索商品名、SMC、SKU等信息）")
     private String searchKeyword;
 
+    @Schema(description = "下单门店编码（locationCode）")
+    private String locationCode;
+
     @Getter
     @Setter
     @Schema(description = "收货地址信息")
@@ -100,7 +103,18 @@ public class OrderPO extends BasePO {
         @Schema(description = "收件人手机号")
         @NotBlank(message = "收件人手机号不能为空")
         private String telNumber;
+        
+        @Schema(description = "详细地址")
+        @NotBlank(message = "详细地址不能为空")
+        private String detailAddress;
 
+        @Schema(description = "纬度", requiredMode = Schema.RequiredMode.REQUIRED, example = "39.9142")
+        @NotNull(message = "纬度不能为空")
+        private BigDecimal latitude;
+    
+        @Schema(description = "经度", requiredMode = Schema.RequiredMode.REQUIRED, example = "116.4174")
+        @NotNull(message = "经度不能为空")
+        private BigDecimal longitude;
     }
 
 }

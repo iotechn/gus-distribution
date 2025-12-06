@@ -184,6 +184,8 @@ public class OrderServiceImpl implements OrderService {
         orderPO.setAmount(totalAmount);
         orderPO.setPayAmount(payAmount);
         orderPO.setRemark(submitDTO.getRemark());
+        // 记录下单门店编码
+        orderPO.setLocationCode(locationCode);
 
         // 构建搜索关键字（冗余商品信息用于搜索）
         String searchKeyword = buildSearchKeyword(orderItemInfos);
@@ -197,6 +199,9 @@ public class OrderServiceImpl implements OrderService {
         orderAddress.setProvinceName(addressPO.getProvinceName());
         orderAddress.setCityName(addressPO.getCityName());
         orderAddress.setCountyName(addressPO.getCountyName());
+        orderAddress.setDetailAddress(addressPO.getDetailAddress());
+        orderAddress.setLongitude(addressPO.getLongitude());
+        orderAddress.setLatitude(addressPO.getLatitude());
         orderPO.setAddress(orderAddress);
 
         // 保存订单
@@ -870,6 +875,88 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelOrder(String orderNo) {
+        // 获取用户信息
+        FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
+
+        // 查询订单信息
+        OrderPO orderPO = orderMapper.selectOne(
+                new QueryWrapper<OrderPO>()
+                        .eq("order_no", orderNo));
+
+        // 验证订单归属权限
+        validateOrderOwnership(orderPO, sessionInfo, "无权限操作此订单");
+
+        // 检查订单是否可取消
+        if (!OrderStatusType.cancelable(orderPO.getStatus())) {
+            throw new ServiceException(DistributionErrorCode.ORDER_STATUS_INVALID, "订单状态不允许取消");
+        }
+
+        // 查询订单商品
+        List<OrderItemPO> orderItemPOs = orderItemMapper.selectList(
+                new QueryWrapper<OrderItemPO>()
+                        .eq("order_id", orderPO.getId()));
+
+        // 回补库存（仅对库存型商品）
+        if (!CollectionUtils.isEmpty(orderItemPOs)) {
+            // 先批量查询商品，判断是否库存型
+            List<String> skuList = orderItemPOs.stream().map(OrderItemPO::getSku).distinct().collect(Collectors.toList());
+            ItemSearchDTO searchDTO = new ItemSearchDTO();
+            searchDTO.setSku(skuList);
+            searchDTO.setPageNum(1);
+            searchDTO.setPageSize(Math.max(100, skuList.size()));
+
+            R<PageResult<ItemVO>> itemResp = productItemFeignClient.search(searchDTO);
+            if (!BasicErrorCode.SUCCESS.getCode().equals(itemResp.getCode()) || itemResp.getData() == null) {
+                throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, itemResp.getMessage());
+            }
+            List<ItemVO> itemVOs = Optional.ofNullable(itemResp.getData().getData()).orElse(Collections.emptyList());
+
+            // 映射sku到是否库存型
+            Set<String> stockableSkus = new HashSet<>();
+            for (ItemVO itemVO : itemVOs) {
+                boolean stockable = Boolean.TRUE.equals(itemVO.getStockable());
+                if (stockable && itemVO.getSkus() != null) {
+                    for (ItemVO.ItemSkuVO skuVO : itemVO.getSkus()) {
+                        if (skuList.contains(skuVO.getSku())) {
+                            stockableSkus.add(skuVO.getSku());
+                        }
+                    }
+                }
+            }
+
+            List<BatchStockAdjustDTO.ItemDTO> adjustItems = new ArrayList<>();
+            // 回补库存使用订单存储的门店编码，若缺失则尝试使用会话中的编码
+            String restockLocationCode = orderPO.getLocationCode();
+            for (OrderItemPO itemPO : orderItemPOs) {
+                if (stockableSkus.contains(itemPO.getSku())) {
+                    BatchStockAdjustDTO.ItemDTO itemDTO = new BatchStockAdjustDTO.ItemDTO();
+                    itemDTO.setLocationCode(restockLocationCode);
+                    itemDTO.setSku(itemPO.getSku());
+                    itemDTO.setOperation(BatchStockAdjustDTO.Operation.ADD);
+                    itemDTO.setQuantity(itemPO.getQty());
+                    adjustItems.add(itemDTO);
+                }
+            }
+
+            if (!adjustItems.isEmpty()) {
+                BatchStockAdjustDTO batch = new BatchStockAdjustDTO();
+                batch.setItems(adjustItems);
+                R<Void> resp = productStockFeignClient.adjustStock(batch);
+                if (!BasicErrorCode.SUCCESS.getCode().equals(resp.getCode())) {
+                    throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, resp.getMessage());
+                }
+            }
+        }
+
+        // 更新订单状态为已取消
+        orderPO.setStatus(OrderStatusType.CANCELED.getCode());
+        orderMapper.updateById(orderPO);
+
+        log.info("用户取消订单成功: userId={}, orderNo={}", sessionInfo.getUserId(), orderNo);
+    }
+
     public PageResult<OrderListVO> getUserOrders(FoOrderSearchDTO searchDTO) {
         // 获取当前登录用户ID
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
@@ -908,7 +995,7 @@ public class OrderServiceImpl implements OrderService {
         }
         
         // 按创建时间倒序排列
-        queryWrapper.orderByDesc("created_time");
+        queryWrapper.orderByDesc("id");
         
         Page<OrderPO> resultPage = orderMapper.selectPage(page, queryWrapper);
         
