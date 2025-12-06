@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.dobbinsoft.gus.distribution.data.constant.DistributionConstants;;;
 
 @Tag(name = "购物车管理", description = "用户端购物车相关接口")
 @RestController
@@ -20,15 +21,15 @@ public class CartController {
 
     @Operation(summary = "添加商品到购物车")
     @PostMapping("/add")
-    public R<Void> addCartItem(@Valid @RequestBody AddCartItemDTO addCartItemDTO) {
-        cartService.addCartItem(addCartItemDTO);
+    public R<Void> addCartItem(@Valid @RequestBody AddCartItemDTO addCartItemDTO, @RequestHeader(DistributionConstants.LOCATION_HEADER) String locationCode) {
+        cartService.addCartItem(addCartItemDTO, locationCode);
         return R.success();
     }
 
     @Operation(summary = "获取用户购物车列表")
     @GetMapping("/list")
-    public R<CartVO> getUserCart() {
-        CartVO cartVO = cartService.getUserCart();
+    public R<CartVO> getUserCart(@RequestHeader(DistributionConstants.LOCATION_HEADER) String locationCode) {
+        CartVO cartVO = cartService.getUserCart(locationCode);
         return R.success(cartVO);
     }
 

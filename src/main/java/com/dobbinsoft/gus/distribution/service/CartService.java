@@ -8,12 +8,12 @@ public interface CartService {
     /**
      * 添加商品到购物车
      */
-    void addCartItem(AddCartItemDTO addCartItemDTO);
+    void addCartItem(AddCartItemDTO addCartItemDTO, String locationCode);
 
     /**
      * 获取用户购物车列表
      */
-    CartVO getUserCart();
+    CartVO getUserCart(String locationCode);
 
     /**
      * 统计购物车商品数量

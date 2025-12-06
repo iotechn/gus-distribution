@@ -22,7 +22,6 @@ import com.dobbinsoft.gus.distribution.mapper.CartItemCustomizationMapper;
 import com.dobbinsoft.gus.distribution.mapper.CartItemMapper;
 import com.dobbinsoft.gus.distribution.mapper.CartMapper;
 import com.dobbinsoft.gus.distribution.service.CartService;
-import com.dobbinsoft.gus.distribution.service.biz.ConfigurationBizService;
 import com.dobbinsoft.gus.distribution.utils.SessionUtils;
 import com.dobbinsoft.gus.distribution.utils.UuidWorker;
 import lombok.extern.slf4j.Slf4j;
@@ -55,15 +54,12 @@ public class CartServiceImpl implements CartService {
     @Autowired
     private ProductStockFeignClient productStockFeignClient;
 
-    @Autowired
-    private ConfigurationBizService configurationBizService;
-
 
     private static final int MAX_CART_ITEMS = 100;
 
     @Override
     @Transactional
-    public void addCartItem(AddCartItemDTO addCartItemDTO) {
+    public void addCartItem(AddCartItemDTO addCartItemDTO, String locationCode) {
         // 获取当前用户
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
@@ -92,7 +88,7 @@ public class CartServiceImpl implements CartService {
 
         // 获取EC库存
         List<ListStockVO> stocks = itemStockVO.getData().getStocks();
-        ListStockVO stockVO = stocks.stream().filter(item -> item.getLocationCode().equals(configurationBizService.getConfiguration().getLocation().getCode()))
+        ListStockVO stockVO = stocks.stream().filter(item -> item.getLocationCode().equals(locationCode))
                 .findFirst()
                 .orElseThrow(() -> new ServiceException(DistributionErrorCode.ITEM_NOT_FOUND));
 
@@ -155,7 +151,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartVO getUserCart() {
+    public CartVO getUserCart(String locationCode) {
         // 获取当前用户
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
 
@@ -184,18 +180,65 @@ public class CartServiceImpl implements CartService {
         
         Map<String, ItemVO> itemMap = new HashMap<>();
         if (!smcSet.isEmpty()) {
+            // 1) 批量查询商品信息
             ItemSearchDTO searchDTO = new ItemSearchDTO();
             searchDTO.setSmc(new ArrayList<>(smcSet));
             searchDTO.setPageSize(100);
             searchDTO.setPageNum(1);
-            
+
             R<PageResult<ItemVO>> searchResult = productItemFeignClient.search(searchDTO);
             if (BasicErrorCode.SUCCESS.getCode().equals(searchResult.getCode()) && searchResult.getData() != null) {
-                // 假设PageResult有getRecords()方法
                 PageResult<ItemVO> data = searchResult.getData();
-                data.getData().forEach(item -> {
-                    itemMap.put(item.getSmc(), item);
-                });
+                data.getData().forEach(item -> itemMap.put(item.getSmc(), item));
+            }
+
+            // 2) 批量查询 locationCode 下的库存/价格，并回填到对应 ItemVO 的 sku 下
+            if (locationCode != null && !locationCode.isBlank() && !itemMap.isEmpty()) {
+                List<String> skuList = cartItems.stream().map(CartItemPO::getSku).toList();
+                // 组装 StockSearchDTO，按 location + smc 过滤，分页拉取完所有数据
+                StockSearchDTO stockSearchDTO = new StockSearchDTO();
+                stockSearchDTO.setLocationCode(Collections.singletonList(locationCode));
+                stockSearchDTO.setSku(skuList);
+                stockSearchDTO.setPageNum(1);
+                stockSearchDTO.setPageSize(1000);
+
+                // 收集结果，按 sku 索引
+                Map<String, ListStockVO> stockBySku = new HashMap<>();
+                boolean hasMore;
+                do {
+                    R<PageResult<ListStockVO>> stockResult = productStockFeignClient.search(stockSearchDTO);
+                    if (!BasicErrorCode.SUCCESS.getCode().equals(stockResult.getCode()) || stockResult.getData() == null) {
+                        break;
+                    }
+                    PageResult<ListStockVO> stockPage = stockResult.getData();
+                    if (stockPage.getData() != null) {
+                        for (ListStockVO s : stockPage.getData()) {
+                            stockBySku.put(s.getSku(), s);
+                        }
+                    }
+                    hasMore = Boolean.TRUE.equals(stockPage.getHasMore());
+                    stockSearchDTO.setPageNum(stockSearchDTO.getPageNum() + 1);
+                } while (hasMore);
+
+                // 将库存/价格映射到每个 ItemVO 的 sku 列表中
+                for (ItemVO itemVO : itemMap.values()) {
+                    if (itemVO.getSkus() == null) continue;
+                    for (ItemVO.ItemSkuVO skuVO : itemVO.getSkus()) {
+                        ListStockVO s = stockBySku.get(skuVO.getSku());
+                        if (s != null) {
+                            skuVO.setLocationCode(s.getLocationCode());
+                            skuVO.setCurrencyCode(s.getCurrencyCode());
+                            skuVO.setPrice(s.getPrice());
+                            skuVO.setQuantity(s.getQuantity());
+                        } else {
+                            // 指定仓库没有该 SKU 的库存/价格，置空
+                            skuVO.setLocationCode(null);
+                            skuVO.setCurrencyCode(null);
+                            skuVO.setPrice(null);
+                            skuVO.setQuantity(null);
+                        }
+                    }
+                }
             }
         }
 
