@@ -20,12 +20,8 @@ import java.sql.SQLException;
 @MappedTypes(OrderPO.Address.class)
 public class AddressTypeHandler extends BaseTypeHandler<OrderPO.Address> {
 
-    private static DistributionProperties distributionProperties;
-
     @Autowired
-    public void setEcommerceProperties(DistributionProperties distributionProperties) {
-        AddressTypeHandler.distributionProperties = distributionProperties;
-    }
+    private DistributionProperties distributionProperties;
 
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, OrderPO.Address parameter, JdbcType jdbcType) throws SQLException {
