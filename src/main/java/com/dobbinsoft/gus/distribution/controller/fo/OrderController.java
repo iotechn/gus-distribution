@@ -162,4 +162,36 @@ public class OrderController {
         orderService.cancelRefund(refundId);
         return R.success();
     }
+
+    @PutMapping("/{orderNo}/confirm-receipt")
+    @Operation(summary = "确认收货", description = "用户确认订单收货，订单状态将从待收货变为待评价")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "确认成功"),
+        @ApiResponse(responseCode = "401", description = "用户未登录"),
+        @ApiResponse(responseCode = "403", description = "无权限操作此订单"),
+        @ApiResponse(responseCode = "404", description = "订单不存在"),
+        @ApiResponse(responseCode = "409", description = "订单状态不允许确认收货")
+    })
+    public R<Void> confirmReceipt(
+            @Parameter(description = "订单号", required = true, example = "O202412011234567890")
+            @PathVariable String orderNo) {
+        orderService.confirmReceipt(orderNo);
+        return R.success();
+    }
+
+    @PutMapping("/{orderNo}/cancel")
+    @Operation(summary = "取消订单", description = "用户取消订单，仅未付款订单可取消；会自动回补库存")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "取消成功"),
+        @ApiResponse(responseCode = "401", description = "用户未登录"),
+        @ApiResponse(responseCode = "403", description = "无权限操作此订单"),
+        @ApiResponse(responseCode = "404", description = "订单不存在"),
+        @ApiResponse(responseCode = "409", description = "订单状态不允许取消")
+    })
+    public R<Void> cancelOrder(
+            @Parameter(description = "订单号", required = true, example = "O202412011234567890")
+            @PathVariable String orderNo) {
+        orderService.cancelOrder(orderNo);
+        return R.success();
+    }
 }
