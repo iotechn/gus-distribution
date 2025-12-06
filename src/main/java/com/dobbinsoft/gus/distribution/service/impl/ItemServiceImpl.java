@@ -131,14 +131,12 @@ public class ItemServiceImpl implements ItemService {
                 ItemWithStockVO.LocationStock ls = stockBySku.get(skuVO.getSku());
                 if (ls != null) {
                     skuVO.setLocationCode(ls.getLocationCode());
-                    skuVO.setLocationSku(ls.getLocationSku());
                     skuVO.setCurrencyCode(ls.getCurrencyCode());
                     skuVO.setPrice(ls.getPrice());
                     skuVO.setQuantity(ls.getQuantity());
                 } else {
                     // 指定仓库没有该 SKU 的报价/库存，保留为空
                     skuVO.setLocationCode(null);
-                    skuVO.setLocationSku(null);
                     skuVO.setCurrencyCode(null);
                     skuVO.setPrice(null);
                     skuVO.setQuantity(null);
@@ -167,7 +165,6 @@ public class ItemServiceImpl implements ItemService {
         locationStock.setPrice(stockVO.getPrice());
         locationStock.setQuantity(stockVO.getQuantity());
         locationStock.setCurrencyCode(stockVO.getCurrencyCode());
-        locationStock.setLocationSku(stockVO.getLocationSku());
         locationStock.setSmc(stockVO.getSmc());
         return locationStock;
     }

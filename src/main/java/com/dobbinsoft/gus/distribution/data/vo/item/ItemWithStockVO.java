@@ -34,9 +34,6 @@ public class ItemWithStockVO extends ItemDetailVO {
     @Schema(description = "指定仓库下的 SKU 库存信息")
     public static class LocationStock {
 
-        @Schema(description = "location 与 SKU 的复合主键")
-        private String locationSku;
-
         @Schema(description = "仓库编码")
         private String locationCode;
 

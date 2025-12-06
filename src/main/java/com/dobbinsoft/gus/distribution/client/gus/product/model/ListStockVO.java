@@ -12,9 +12,6 @@ import java.math.BigDecimal;
 @Schema(description = "Stock record information for list display")
 public class ListStockVO {
 
-    @Schema(description = "Primary key in format: locationCode_sku", example = "WH001_SKU001")
-    private String locationSku;
-
     @Schema(description = "Warehouse location code", example = "WH001")
     private String locationCode;
 

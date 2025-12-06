@@ -89,9 +89,6 @@ public class ItemVO {
         @Schema(description = "Warehouse location code for this SKU (when filtered by location)")
         private String locationCode;
 
-        @Schema(description = "Composite primary key: locationCode_sku (when filtered by location)")
-        private String locationSku;
-
         @Schema(description = "Currency code of the price at the specified location")
         private CurrencyCode currencyCode;
 
