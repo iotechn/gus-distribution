@@ -48,7 +48,7 @@ public class OrderItemPO extends BasePO {
     @Schema(description = "购买数量")
     @NotNull(message = "购买数量不能为空")
     @Positive(message = "购买数量必须大于0")
-    private Integer qty;
+    private BigDecimal qty;
 
     @Schema(description = "商品价格")
     @NotNull(message = "商品价格不能为空")
