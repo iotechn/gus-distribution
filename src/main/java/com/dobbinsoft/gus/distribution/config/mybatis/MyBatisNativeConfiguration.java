@@ -179,6 +179,12 @@ public class MyBatisNativeConfiguration {
             hints.reflection().registerType(GsonTypeHandler.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
             hints.reflection().registerType(JacksonTypeHandler.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
             hints.reflection().registerType(MybatisEnumTypeHandler.class, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
+
+            // For Jackson deserialization under GraalVM native image
+            // Address is stored as JSON and decrypted, then deserialized via Jackson
+            // We must register reflection for these POJOs
+            hints.reflection().registerType(com.dobbinsoft.gus.distribution.data.po.OrderPO.class, MemberCategory.values());
+            hints.reflection().registerType(com.dobbinsoft.gus.distribution.data.po.OrderPO.Address.class, MemberCategory.values());
         }
     }
 
