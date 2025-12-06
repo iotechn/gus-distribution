@@ -18,7 +18,7 @@ public class ItemSearchDTO extends PageSearchDTO {
 
     private List<String> sku;
 
-    private List<Long> categoryId;
+    private List<String> categoryId;
 
     private Map<String, List<String>> attrs;
 
