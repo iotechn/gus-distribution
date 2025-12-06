@@ -81,7 +81,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 计算商品总金额
         BigDecimal goodsTotalAmount = orderItemInfos.stream()
-                .map(item -> item.getPrice().multiply(new BigDecimal(item.getQty())))
+                .map(item -> item.getPrice().multiply(item.getQty()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 校验并获取收货地址（与提交逻辑保持一致）
@@ -138,7 +138,7 @@ public class OrderServiceImpl implements OrderService {
 
         // 计算商品总金额
         BigDecimal totalAmount = orderItemInfos.stream()
-                .map(item -> item.getPrice().multiply(new BigDecimal(item.getQty())))
+                .map(item -> item.getPrice().multiply(item.getQty()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 获取收货地址
@@ -305,7 +305,7 @@ public class OrderServiceImpl implements OrderService {
             TransactionCreateDTO.Item item = new TransactionCreateDTO.Item();
             item.setSku(itemPO.getSku());
             item.setName(itemPO.getItemName());
-            item.setQuantity(new BigDecimal(itemPO.getQty()));
+            item.setQuantity(itemPO.getQty());
             item.setPrice(itemPO.getPrice());
             return item;
         }).collect(Collectors.toList());
@@ -400,6 +400,7 @@ public class OrderServiceImpl implements OrderService {
                 }
 
                 OrderItemInfo itemInfo = new OrderItemInfo();
+                itemInfo.setLocationCode(locationCode);
                 itemInfo.setSmc(itemVO.getSmc());
                 itemInfo.setSku(orderItem.getSku());
                 itemInfo.setQty(orderItem.getQty());
@@ -430,7 +431,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 验证SKU数量不超过100
-        int totalSkuCount = orderItemInfos.stream().mapToInt(OrderItemInfo::getQty).sum();
+        int totalSkuCount = orderItemInfos.size();
         if (totalSkuCount > 100) {
             throw new ServiceException(DistributionErrorCode.ORDER_SKU_COUNT_EXCEEDED);
         }
@@ -455,10 +456,10 @@ public class OrderServiceImpl implements OrderService {
                 if (itemInfo.getAvailableQuantity() == null) {
                     throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "缺少库存信息: " + itemInfo.getSku());
                 }
-                if (itemInfo.getAvailableQuantity().compareTo(new BigDecimal(itemInfo.getQty())) < 0) {
+                if (itemInfo.getAvailableQuantity().compareTo(itemInfo.getQty()) < 0) {
                     throw new ServiceException(BasicErrorCode.PARAMERROR, "库存不足: " + itemInfo.getSku());
                 }
-                log.info("验证库存: locationSku={}, 需要数量={}, 可用={}", itemInfo.getLocationSku(), itemInfo.getQty(), itemInfo.getAvailableQuantity());
+                log.info("验证库存: locationCode={}, sku={}, 需要数量={}, 可用={}", itemInfo.getLocationCode(), itemInfo.getSku(), itemInfo.getQty(), itemInfo.getAvailableQuantity());
             }
         }
     }
@@ -472,9 +473,10 @@ public class OrderServiceImpl implements OrderService {
         for (OrderItemInfo itemInfo : orderItemInfos) {
             if (itemInfo.getStockable()) {
                 BatchStockAdjustDTO.ItemDTO itemDTO = new BatchStockAdjustDTO.ItemDTO();
-                itemDTO.setLocationSku(itemInfo.getLocationSku());
+                itemDTO.setLocationCode(itemInfo.getLocationCode());
+                itemDTO.setSku(itemInfo.getSku());
                 itemDTO.setOperation(BatchStockAdjustDTO.Operation.SUBTRACT);
-                itemDTO.setQuantity(new BigDecimal(itemInfo.getQty()));
+                itemDTO.setQuantity(itemInfo.getQty());
                 stockAdjustItems.add(itemDTO);
             }
         }
@@ -751,7 +753,7 @@ public class OrderServiceImpl implements OrderService {
             
             // 验证退款数量
             int totalRefundQty = alreadyRefundQty + itemDTO.getRefundQty();
-            if (totalRefundQty > orderItemPO.getQty()) {
+            if (java.math.BigDecimal.valueOf(totalRefundQty).compareTo(orderItemPO.getQty()) > 0) {
                 throw new ServiceException(DistributionErrorCode.REFUND_AMOUNT_EXCEEDED,
                         "退款数量超过购买数量: 已申请" + alreadyRefundQty + ", 本次申请" + itemDTO.getRefundQty() + ", 商品总数量" + orderItemPO.getQty());
             }
@@ -1224,12 +1226,12 @@ public class OrderServiceImpl implements OrderService {
     private static class OrderItemInfo {
         private String smc;
         private String sku;
-        private Integer qty;
+        private BigDecimal qty;
         private Boolean stockable;
         private String itemName;
         private String skuName;
         private BigDecimal price;
-        private String locationSku;
+        private String locationCode;
         private BigDecimal availableQuantity; // 可用库存
         private String unit;
         private String productPic;

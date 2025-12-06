@@ -123,13 +123,10 @@ public class OrderListVO {
         private String productPicSmall;
         
         @Schema(description = "购买数量", example = "1")
-        private Integer qty;
+        private BigDecimal qty;
         
         @Schema(description = "商品价格", example = "5999.00")
         private BigDecimal price;
-        
-        @Schema(description = "商品原价", example = "6999.00")
-        private BigDecimal originalPrice;
         
         @Schema(description = "商品备注", example = "限时特价")
         private String remark;

@@ -21,9 +21,13 @@ public class BatchStockAdjustDTO {
     @Setter
     public static class ItemDTO {
 
-        @Schema(description = "locate a unique stock record")
-        @NotBlank(message = "LocationSku cannot be blank")
-        private String locationSku;
+        @Schema(contentMediaType = "location code")
+        @NotBlank(message = "Location code cannot be blank")
+        private String locationCode;
+
+        @Schema(description = "sku")
+        @NotBlank(message = "sku cannot be blank")
+        private String sku;
 
         @Schema(description = "operation type")
         @NotNull(message = "Operation cannot be null")

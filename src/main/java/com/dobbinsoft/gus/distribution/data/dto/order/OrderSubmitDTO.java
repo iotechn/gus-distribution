@@ -40,10 +40,10 @@ public class OrderSubmitDTO {
         @Size(max = 100, message = "SKU长度不能超过100个字符")
         private String sku;
 
-        @Schema(description = "购买数量", example = "2")
+        @Schema(description = "购买数量", example = "2.5")
         @NotNull(message = "购买数量不能为空")
         @Positive(message = "购买数量必须为正数")
-        private Integer qty;
+        private java.math.BigDecimal qty;
 
     }
 
