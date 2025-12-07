@@ -21,7 +21,8 @@ public class CartController {
 
     @Operation(summary = "添加商品到购物车")
     @PostMapping("/add")
-    public R<Void> addCartItem(@Valid @RequestBody AddCartItemDTO addCartItemDTO, @RequestHeader(DistributionConstants.LOCATION_HEADER) String locationCode) {
+    public R<Void> addCartItem(@Valid @RequestBody AddCartItemDTO addCartItemDTO,
+                               @RequestHeader(DistributionConstants.LOCATION_HEADER) String locationCode) {
         cartService.addCartItem(addCartItemDTO, locationCode);
         return R.success();
     }
@@ -49,8 +50,18 @@ public class CartController {
 
     @Operation(summary = "更新购物车商品数量")
     @PutMapping("/item/{cartItemId}/quantity")
-    public R<Void> updateCartItemQuantity(@PathVariable String cartItemId, @RequestParam Integer quantity) {
+    public R<Void> updateCartItemQuantity(@PathVariable String cartItemId,
+                                          @RequestParam Integer quantity) {
         cartService.updateCartItemQuantity(cartItemId, quantity);
+        return R.success();
+    }
+
+    @Operation(summary = "更新购物车商品SKU（同一SMC内修改规格）")
+    @PutMapping("/item/{cartItemId}/sku")
+    public R<Void> updateCartItemSku(@PathVariable String cartItemId,
+                                     @RequestParam String newSku,
+                                     @RequestHeader(DistributionConstants.LOCATION_HEADER) String locationCode) {
+        cartService.updateCartItemSku(cartItemId, newSku, locationCode);
         return R.success();
     }
 }
