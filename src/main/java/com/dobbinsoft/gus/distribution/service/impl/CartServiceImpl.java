@@ -354,6 +354,87 @@ public class CartServiceImpl implements CartService {
         updateCartQuantity(cart.getId());
     }
 
+    @Override
+    @Transactional
+    public void updateCartItemSku(String cartItemId, String newSku, String locationCode) {
+        // 基本参数校验
+        if (newSku == null || newSku.isBlank()) {
+            throw new ServiceException(DistributionErrorCode.INVALID_SKU);
+        }
+        // 获取当前用户
+        FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
+
+        // 验证购物车商品是否属于当前用户
+        CartItemPO cartItem = cartItemMapper.selectById(cartItemId);
+        if (cartItem == null) {
+            throw new ServiceException(BasicErrorCode.NO_RESOURCE);
+        }
+        CartPO cart = cartMapper.selectById(cartItem.getCartId());
+        validateCartOwnership(cart, sessionInfo.getUserId());
+
+        // 如果 SKU 相同则不处理
+        if (newSku.equals(cartItem.getSku())) {
+            return;
+        }
+
+        // 通过新 SKU 获取商品详情并校验 SMC 不变
+        R<ItemDetailVO> bySku = productItemFeignClient.getBySku(newSku);
+        if (!BasicErrorCode.SUCCESS.getCode().equals(bySku.getCode()) || bySku.getData() == null) {
+            throw new ServiceException(DistributionErrorCode.INVALID_SKU);
+        }
+        ItemDetailVO newSkuItem = bySku.getData();
+        if (newSkuItem.getStatus() == ItemStatus.DISABLED) {
+            throw new ServiceException(DistributionErrorCode.ITEM_NOT_FOUND);
+        }
+        // SMC 必须与原条目一致
+        if (!cartItem.getSmc().equals(newSkuItem.getSmc())) {
+            throw new ServiceException(DistributionErrorCode.INVALID_SKU);
+        }
+
+        // 查找是否存在相同（smc + sku + customization_signature）的条目，若有则合并数量
+        QueryWrapper<CartItemPO> sameWrapper = new QueryWrapper<>();
+        sameWrapper.eq("cart_id", cart.getId())
+                .eq("smc", cartItem.getSmc())
+                .eq("sku", newSku)
+                .eq("customization_signature", cartItem.getCustomizationSignature())
+                .eq("status", StatusType.ENABLED.getCode());
+        CartItemPO sameItem = cartItemMapper.selectOne(sameWrapper);
+
+        if (sameItem != null) {
+            // 合并数量，删除当前条目及其客制化记录
+            sameItem.setQuantity(sameItem.getQuantity() + cartItem.getQuantity());
+            cartItemMapper.updateById(sameItem);
+
+            QueryWrapper<CartItemCustomizationPO> delCus = new QueryWrapper<>();
+            delCus.eq("cart_item_id", cartItem.getId());
+            cartItemCustomizationMapper.delete(delCus);
+            cartItemMapper.deleteById(cartItem.getId());
+        } else {
+            // 更新当前条目的 SKU
+            cartItem.setSku(newSku);
+
+            // 尝试按 location + sku 获取价格，若存在则更新 entryPrice
+            try {
+                if (locationCode != null && !locationCode.isBlank()) {
+                    R<ItemStockVO> itemStockVO = productStockFeignClient.itemStock(cartItem.getSmc());
+                    if (BasicErrorCode.SUCCESS.getCode().equals(itemStockVO.getCode()) && itemStockVO.getData() != null && itemStockVO.getData().getStocks() != null) {
+                        Optional<ListStockVO> match = itemStockVO.getData().getStocks().stream()
+                                .filter(s -> locationCode.equals(s.getLocationCode()) && newSku.equals(s.getSku()))
+                                .findFirst();
+                        match.ifPresent(stock -> cartItem.setEntryPrice(stock.getPrice()));
+                    }
+                }
+            } catch (Exception ignore) {
+                // 忽略库存价格查询异常，保持原价
+            }
+
+            cartItemMapper.updateById(cartItem);
+        }
+
+        // 更新购物车总数量（数量不变，但保持一致性）
+        updateCartQuantity(cart.getId());
+    }
+
     /**
      * 获取或创建用户购物车
      */

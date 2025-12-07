@@ -29,4 +29,10 @@ public interface CartService {
      * 更新购物车商品数量
      */
     void updateCartItemQuantity(String cartItemId, Integer quantity);
+
+    /**
+     * 更新购物车商品的 SKU（同一 SMC 内切换规格）
+     * 要求：修改前后 SMC 不变
+     */
+    void updateCartItemSku(String cartItemId, String newSku, String locationCode);
 } 
