@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <!-- Read Spring properties -->
+    <springProperty name="APP_NAME" source="spring.application.name"/>
+    <springProperty name="ENV" source="spring.profiles.active" defaultValue="default"/>
+
+    <property name="DATE_PATTERN" value="yyyy-MM-dd HH:mm:ss.SSS"/>
+    <property name="CONSOLE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %X{traceId} - %msg%n"/>
+
+    <!-- Text console appender for local/default profile -->
+    <appender name="CONSOLE_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>utf-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- JSON console appender for non-default profiles -->
+    <appender name="JSON_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <!-- standard/common fields -->
+                <timestamp>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <version/>
+                <loggerName/>
+                <message/>
+                <threadName/>
+                <logLevel/>
+                <callerData/>
+                <stackTrace/>
+                <!-- Add a metadata object with env/app_name/traceId/tenantId -->
+                <pattern>
+                    <pattern>{"metadata":{"app_name":"${APP_NAME}","env":"${ENV}","traceId":"%mdc{traceId}","tenantId":"%mdc{tenantId}"}}</pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="JSON_APPENDER"/>
+    </root>
+
+</configuration>
+
