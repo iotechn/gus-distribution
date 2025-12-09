@@ -1,27 +1,38 @@
 package com.dobbinsoft.gus.distribution.mq.consumer;
 
-import com.dobbinsoft.gus.common.utils.json.JsonUtil;
-import com.dobbinsoft.gus.distribution.client.gus.permission.PermissionDlqFeignClient;
-import com.dobbinsoft.gus.distribution.client.gus.permission.model.DlqCreateDTO;
-import com.dobbinsoft.gus.distribution.client.gus.permission.model.DlqUpdateStatusDTO;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.domain.Range;
-import org.springframework.data.redis.connection.stream.*;
-import org.springframework.data.redis.core.StreamOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
-
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Range;
+import org.springframework.data.redis.connection.stream.Consumer;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.connection.stream.PendingMessage;
+import org.springframework.data.redis.connection.stream.PendingMessages;
+import org.springframework.data.redis.connection.stream.ReadOffset;
+import org.springframework.data.redis.connection.stream.RecordId;
+import org.springframework.data.redis.connection.stream.StreamOffset;
+import org.springframework.data.redis.connection.stream.StreamReadOptions;
+import org.springframework.data.redis.core.StreamOperations;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import com.dobbinsoft.gus.common.utils.json.JsonUtil;
+import com.dobbinsoft.gus.distribution.client.gus.permission.PermissionDlqFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.permission.model.DlqCreateDTO;
+import com.dobbinsoft.gus.distribution.client.gus.permission.model.DlqUpdateStatusDTO;
+import com.fasterxml.jackson.core.type.TypeReference;
+
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 /**
  * Redis Stream 消息消费抽象基类
  * 提供通用的消息调度、重试、死信队列等逻辑
@@ -35,6 +46,9 @@ public abstract class AbstractConsumer implements InitializingBean {
 
     @Autowired
     protected PermissionDlqFeignClient permissionDlqFeignClient;
+
+    // 标记系统是否正在关闭，用于在退出阶段降低日志级别，避免误报错误
+    private volatile boolean shuttingDown = false;
 
     /**
      * 消费者配置类
@@ -167,6 +181,16 @@ public abstract class AbstractConsumer implements InitializingBean {
         ConsumerConfigBuilder config = getConsumerConfig();
         config.validate();
         
+        // 注册 JVM 关闭钩子，用于在优雅停机时降低日志级别
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            shuttingDown = true;
+            try {
+                log.info("{} Shutdown signal received. Stopping consumer loop...", getLogPrefix());
+            } catch (Throwable ignored) {
+                // ignore logging issues during shutdown
+            }
+        }, "Redis-Consumer-ShutdownHook-" + getLogPrefix()));
+        
         StreamOperations<String, Object, Object> ops = stringRedisTemplate.opsForStream();
         String consumerName = config.getConsumerNamePrefix() + "_" + UUID.randomUUID().toString().replace("-", "");
         
@@ -181,11 +205,16 @@ public abstract class AbstractConsumer implements InitializingBean {
         // 启动消费线程
         Thread thread = new Thread(() -> {
             // TODO 这里的map无法解决集群问题
+            // TODO ACK并不会让数据删除，后面改为
+            //使用redis 7 生产端限长（最简单，代价低）
+            //XADD MAXLEN ~ N：只保留最近 N 条，近似裁剪，性能好。
+            //或 Redis 7 起支持按时间：XTRIM MINID ~ <ms-unix-time> 保留最近一段时间的数据。
+            //Spring Data Redis 对应：在 add 时带上 XAddOptions maxlen/approximateTrimming；或后续调用 ops.trim(key, maxLen, true)。
             Map<String, Integer> retryCountMap = new ConcurrentHashMap<>();
             final int MAX_RETRY = config.getMaxRetryCount();
             final int PENDING_BATCH_SIZE = config.getPendingBatchSize();
 
-            while (true) {
+            while (!shuttingDown) {
                 try {
                     // 1. 处理PENDING消息
                     processPendingMessages(ops, consumerName, retryCountMap, MAX_RETRY, PENDING_BATCH_SIZE, config);
@@ -194,7 +223,12 @@ public abstract class AbstractConsumer implements InitializingBean {
                     processNewMessages(ops, consumerName, config);
 
                 } catch (Exception e) {
-                    log.error("{} Main loop error", getLogPrefix(), e);
+                    if (shuttingDown || Thread.currentThread().isInterrupted() || isLettuceConnectionClosed(e)) {
+                        log.warn("{} Main loop error during shutdown", getLogPrefix(), e);
+                        break;
+                    } else {
+                        log.error("{} Main loop error", getLogPrefix(), e);
+                    }
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException ex) {
@@ -203,7 +237,7 @@ public abstract class AbstractConsumer implements InitializingBean {
                     }
                 }
             }
-        });
+        }, "Redis-Consumer-" + getLogPrefix());
         thread.setDaemon(true);
         thread.start();
         log.info("{} Started consumer: {}", getLogPrefix(), consumerName);
@@ -270,8 +304,13 @@ public abstract class AbstractConsumer implements InitializingBean {
 
                     if (!claimed.isEmpty()) {
                         MapRecord<String, Object, Object> message = claimed.get(0);
-                        processMessage(ops, message);
-                        retryCountMap.remove(msgId); // 成功处理后清除重试计数
+                        Map<String, String> previousMdc = setMdcFromMessage(message);
+                        try {
+                            processMessage(ops, message);
+                            retryCountMap.remove(msgId); // 成功处理后清除重试计数
+                        } finally {
+                            restoreMdc(previousMdc);
+                        }
                     }
                 } catch (Exception e) {
                     retryCountMap.put(msgId, retryCount);
@@ -298,10 +337,13 @@ public abstract class AbstractConsumer implements InitializingBean {
         if (newMessages != null && !newMessages.isEmpty()) {
             log.info("{} Processing {} NEW messages", getLogPrefix(), newMessages.size());
             for (MapRecord<String, Object, Object> message : newMessages) {
+                Map<String, String> previousMdc = setMdcFromMessage(message);
                 try {
                     processMessage(ops, message);
                 } catch (Exception e) {
                     log.error("{} Failed new message: {}", getLogPrefix(), message.getId(), e);
+                } finally {
+                    restoreMdc(previousMdc);
                 }
             }
         }
@@ -329,5 +371,68 @@ public abstract class AbstractConsumer implements InitializingBean {
                 log.error("{} Failed to update DLQ record status: {}", getLogPrefix(), dlqRecordId, e);
             }
         }
+    }
+
+    // MDC helpers: set from message and restore previous
+    private Map<String, String> setMdcFromMessage(MapRecord<String, Object, Object> message) {
+        Map<String, String> previous = MDC.getCopyOfContextMap();
+        try {
+            Map<Object, Object> value = message.getValue();
+            Object mdcObj = value.get("mdc");
+            if (mdcObj == null) {
+                return previous;
+            }
+            Map<String, String> mdcMap = null;
+            if (mdcObj instanceof String mdcJson) {
+                try {
+                    mdcMap = JsonUtil.convertValue(mdcJson, new TypeReference<Map<String, String>>() {});
+                } catch (Exception ignore) {
+                    // ignore parsing issues; leave MDC unchanged
+                }
+            } else if (mdcObj instanceof Map<?, ?> rawMap) {
+                Map<String, String> tmp = new HashMap<>();
+                for (Map.Entry<?, ?> e : rawMap.entrySet()) {
+                    tmp.put(String.valueOf(e.getKey()), e.getValue() == null ? null : String.valueOf(e.getValue()));
+                }
+                mdcMap = tmp;
+            }
+
+            MDC.clear();
+            if (mdcMap != null) {
+                for (Map.Entry<String, String> e : mdcMap.entrySet()) {
+                    if (e.getKey() != null && e.getValue() != null) {
+                        MDC.put(e.getKey(), e.getValue());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("{} Failed to set MDC from message: {}", getLogPrefix(), message.getId(), e);
+        }
+        return previous;
+    }
+
+    private void restoreMdc(Map<String, String> previous) {
+        MDC.clear();
+        if (previous != null) {
+            for (Map.Entry<String, String> e : previous.entrySet()) {
+                if (e.getKey() != null && e.getValue() != null) {
+                    MDC.put(e.getKey(), e.getValue());
+                }
+            }
+        }
+    }
+
+    // 判断是否为 Lettuce 在连接关闭时抛出的异常，用于优雅停机时降级日志
+    private boolean isLettuceConnectionClosed(Throwable t) {
+        while (t != null) {
+            if (t instanceof io.lettuce.core.RedisException) {
+                String msg = t.getMessage();
+                if (msg != null && msg.contains("Connection closed")) {
+                    return true;
+                }
+            }
+            t = t.getCause();
+        }
+        return false;
     }
 } 
