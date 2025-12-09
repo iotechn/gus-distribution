@@ -59,7 +59,7 @@ public class PaymentConsumer extends AbstractConsumer {
                 .identityContext(new IdentityContext())
                 .languageContext(new LanguageContext())
                 .build();
-        requestProperty.setProperty(HeaderConstants.TENANT_ID.name(), tenantId);
+        requestProperty.setProperty(HeaderConstants.TENANT_ID.getValue(), tenantId);
         requestProperty.initContext();
         GenericRequestContextHolder.setRequestProperty(requestProperty);
 
@@ -69,5 +69,8 @@ public class PaymentConsumer extends AbstractConsumer {
         
         // 调用订单服务处理支付回调
         orderService.handlePaymentCallback(transactionUpdateEventDTO);
+
+        // 成功则 ACK，避免重复消费
+        acknowledgeMessage(ops, message);
     }
 }
