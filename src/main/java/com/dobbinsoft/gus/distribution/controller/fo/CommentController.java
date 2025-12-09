@@ -1,5 +1,17 @@
 package com.dobbinsoft.gus.distribution.controller.fo;
 
+import java.util.List;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentQueryDTO;
@@ -8,16 +20,12 @@ import com.dobbinsoft.gus.distribution.service.CommentService;
 import com.dobbinsoft.gus.web.exception.BasicErrorCode;
 import com.dobbinsoft.gus.web.exception.ServiceException;
 import com.dobbinsoft.gus.web.vo.R;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "评论管理", description = "用户端评论相关接口")
 @RestController
@@ -59,7 +67,7 @@ public class CommentController {
             @Parameter(description = "SKU") @RequestParam(required = false) String sku,
             @Parameter(description = "页码") @RequestParam Integer pageNum,
             @Parameter(description = "每页数量") @RequestParam Integer pageSize) {
-        if (StringUtils.isEmpty(smc) || StringUtils.isEmpty(sku)) {
+        if (StringUtils.isEmpty(smc) && StringUtils.isEmpty(sku)) {
             throw new ServiceException(BasicErrorCode.PARAMERROR);
         }
         PageResult<CommentVO> page = commentService.getCommentsByProduct(smc, sku, pageNum, pageSize);

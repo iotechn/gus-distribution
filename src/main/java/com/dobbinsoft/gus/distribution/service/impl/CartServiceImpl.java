@@ -124,6 +124,7 @@ public class CartServiceImpl implements CartService {
         } else {
             // 创建新的购物车商品
             CartItemPO newItem = new CartItemPO();
+            newItem.setId(UuidWorker.nextId());
             newItem.setCartId(cart.getId());
             newItem.setSmc(addCartItemDTO.getSmc());
             newItem.setSku(addCartItemDTO.getSku());
