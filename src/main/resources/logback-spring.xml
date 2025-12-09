@@ -33,7 +33,7 @@
                 <stackTrace/>
                 <!-- Add a metadata object with env/app_name/traceId/tenantId -->
                 <pattern>
-                    <pattern>{"metadata":{"app_name":"${APP_NAME}","env":"${ENV}","traceId":"%mdc{traceId}","tenantId":"%mdc{tenantId}"}}</pattern>
+                    <pattern>{"app_name":"${APP_NAME}","env":"${ENV}","traceId":"%mdc{traceId}","tenantId":"%mdc{tenantId}"}</pattern>
                 </pattern>
             </providers>
         </encoder>
