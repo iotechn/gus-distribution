@@ -1,11 +1,12 @@
 package com.dobbinsoft.gus.distribution.client.gus.payment.model;
 
-import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+
+import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
+
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -15,7 +16,7 @@ public class TransactionUpdateEventDTO {
 
     private String transactionNo;
 
-    private ProviderVO provider;
+    private OpenProviderVO provider;
 
     private String providerTradeType;
 
