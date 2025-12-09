@@ -1,5 +1,9 @@
 package com.dobbinsoft.gus.distribution.client.configcenter;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+
 import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.context.bo.TenantContext;
 import com.dobbinsoft.gus.common.utils.json.JsonUtil;
@@ -8,13 +12,9 @@ import com.dobbinsoft.gus.distribution.data.properties.DistributionProperties;
 import com.dobbinsoft.gus.distribution.utils.AESUtil;
 import com.dobbinsoft.gus.web.exception.BasicErrorCode;
 import com.dobbinsoft.gus.web.exception.ServiceException;
+
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
-
-import java.time.Duration;
 
 @Slf4j
 @Component
@@ -24,61 +24,47 @@ public class ConfigCenterClientImpl implements ConfigCenterClient {
     private DistributionProperties distributionProperties;
 
     private static final String CONFIG_KEY_PREFIX = "distribution:config:tenant:";
-    private static final Duration CACHE_EXPIRE_TIME = Duration.ofDays(30); // 配置缓存30天
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
     @Override
     public void save(ConfigContentVO configContentVO) {
-        try {
-            String tenantId = getTenantId();
-            String cacheKey = buildCacheKey(tenantId);
-            
-            // 对secret配置进行AES加密
-            ConfigContentVO encryptedConfig = encryptSecretConfig(configContentVO);
-            
-            // 序列化为JSON字符串
-            String configJson = JsonUtil.convertToString(encryptedConfig);
-            
-            // 保存配置到Redis
-            stringRedisTemplate.opsForValue().set(cacheKey, configJson, CACHE_EXPIRE_TIME);
-            
-            log.info("配置保存成功，租户ID: {}, 缓存Key: {}", tenantId, cacheKey);
-        } catch (Exception e) {
-            log.error("保存配置失败", e);
-            throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "保存配置失败: " + e.getMessage());
-        }
+        String tenantId = getTenantId();
+        String cacheKey = buildCacheKey(tenantId);
+        
+        // 对secret配置进行AES加密
+        ConfigContentVO encryptedConfig = encryptSecretConfig(configContentVO);
+        
+        // 序列化为JSON字符串
+        String configJson = JsonUtil.convertToString(encryptedConfig);
+        
+        // 保存配置到Redis
+        stringRedisTemplate.opsForValue().set(cacheKey, configJson);
+        
+        log.info("配置保存成功，租户ID: {}, 缓存Key: {}", tenantId, cacheKey);
     }
 
     @Override
     public ConfigContentVO getBrandAllConfigContent() {
-        try {
-            String tenantId = getTenantId();
-            String cacheKey = buildCacheKey(tenantId);
-            
-            // 从Redis读取配置JSON字符串
-            String configJson = stringRedisTemplate.opsForValue().get(cacheKey);
+        String tenantId = getTenantId();
+        String cacheKey = buildCacheKey(tenantId);
+        
+        // 从Redis读取配置JSON字符串
+        String configJson = stringRedisTemplate.opsForValue().get(cacheKey);
 
-            ConfigContentVO config;
-            if (configJson == null) {
-                log.info("配置缓存为空，初始化默认配置，租户ID: {}", tenantId);
-                config = createDefaultConfig();
-                // 保存默认配置到Redis
-                save(config);
-            } else {
-                // 反序列化JSON & 解密secret配置
-                config = decryptSecretConfig(JsonUtil.convertValue(configJson, ConfigContentVO.class));
-            }
-            
-            return config;
-        } catch (ServiceException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("获取配置失败", e);
-            // 如果Redis读取失败，返回默认配置
-            return createDefaultConfig();
+        ConfigContentVO config;
+        if (configJson == null) {
+            log.info("配置缓存为空，初始化默认配置，租户ID: {}", tenantId);
+            config = createDefaultConfig();
+            // 保存默认配置到Redis
+            save(config);
+        } else {
+            // 反序列化JSON & 解密secret配置
+            config = decryptSecretConfig(JsonUtil.convertValue(configJson, ConfigContentVO.class));
         }
+        
+        return config;
     }
 
 
