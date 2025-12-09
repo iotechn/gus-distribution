@@ -1,5 +1,24 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
+import java.math.BigDecimal;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
@@ -21,36 +40,51 @@ import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemSearchDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemVO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ListStockVO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.StockSearchDTO;
-import com.dobbinsoft.gus.distribution.data.dto.order.*;
+import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
+import com.dobbinsoft.gus.distribution.data.dto.order.OrderPrepayDTO;
+import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApplyDTO;
+import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
+import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundItemDTO;
+import com.dobbinsoft.gus.distribution.data.dto.order.OrderSearchDTO;
+import com.dobbinsoft.gus.distribution.data.dto.order.OrderSubmitDTO;
 import com.dobbinsoft.gus.distribution.data.dto.session.FoSessionInfoDTO;
 import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
 import com.dobbinsoft.gus.distribution.data.enums.OrderStatusType;
 import com.dobbinsoft.gus.distribution.data.enums.RefundStatusType;
 import com.dobbinsoft.gus.distribution.data.enums.UserSrcType;
 import com.dobbinsoft.gus.distribution.data.exception.DistributionErrorCode;
-import com.dobbinsoft.gus.distribution.data.po.*;
-import com.dobbinsoft.gus.distribution.data.vo.order.*;
-import com.dobbinsoft.gus.distribution.mapper.*;
+import com.dobbinsoft.gus.distribution.data.po.AddressPO;
+import com.dobbinsoft.gus.distribution.data.po.CartItemPO;
+import com.dobbinsoft.gus.distribution.data.po.OrderItemPO;
+import com.dobbinsoft.gus.distribution.data.po.OrderPO;
+import com.dobbinsoft.gus.distribution.data.po.OrderRefundItemPO;
+import com.dobbinsoft.gus.distribution.data.po.OrderRefundPO;
+import com.dobbinsoft.gus.distribution.data.po.UserSocialPO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderPrepayVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundItemVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderVO;
+import com.dobbinsoft.gus.distribution.mapper.AddressMapper;
+import com.dobbinsoft.gus.distribution.mapper.CartItemMapper;
+import com.dobbinsoft.gus.distribution.mapper.OrderItemMapper;
+import com.dobbinsoft.gus.distribution.mapper.OrderMapper;
+import com.dobbinsoft.gus.distribution.mapper.OrderRefundItemMapper;
+import com.dobbinsoft.gus.distribution.mapper.OrderRefundMapper;
+import com.dobbinsoft.gus.distribution.mapper.UserSocialMapper;
 import com.dobbinsoft.gus.distribution.service.OrderService;
 import com.dobbinsoft.gus.distribution.utils.SessionUtils;
 import com.dobbinsoft.gus.distribution.utils.UuidWorker;
 import com.dobbinsoft.gus.web.exception.BasicErrorCode;
 import com.dobbinsoft.gus.web.exception.ServiceException;
 import com.dobbinsoft.gus.web.vo.R;
+
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ObjectUtils;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
-
-import java.math.BigDecimal;
-import java.time.ZonedDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -1253,7 +1287,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void handlePaymentCallback(TransactionUpdateEventDTO transactionUpdateEventDTO) {
-        log.info("开始处理支付回调: orderNo={}, transactionNo={}, status={}", 
+        log.info("[handlePaymentCallback] start hanlde: orderNo={}, transactionNo={}, status={}", 
                 transactionUpdateEventDTO.getOrderNo(), 
                 transactionUpdateEventDTO.getTransactionNo(), 
                 transactionUpdateEventDTO.getStatus());
@@ -1264,13 +1298,13 @@ public class OrderServiceImpl implements OrderService {
                         .eq("order_no", transactionUpdateEventDTO.getOrderNo()));
 
         if (orderPO == null) {
-            log.error("支付回调失败: 订单不存在, orderNo={}", transactionUpdateEventDTO.getOrderNo());
+            log.error("[handlePaymentCallback] handle payment callback failed: order not found, orderNo={}", transactionUpdateEventDTO.getOrderNo());
             throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单不存在");
         }
 
         // 检查订单状态是否允许支付
         if (!OrderStatusType.UNPAY.getCode().equals(orderPO.getStatus())) {
-            log.warn("支付回调失败: 订单状态不允许支付, orderNo={}, currentStatus={}",
+            log.warn("[handlePaymentCallback] handle payment callback failed: order status not allowed, orderNo={}, currentStatus={}",
                     transactionUpdateEventDTO.getOrderNo(), orderPO.getStatus());
             throw new ServiceException(DistributionErrorCode.ORDER_STATUS_INVALID, "订单状态不允许支付");
         }
@@ -1286,7 +1320,7 @@ public class OrderServiceImpl implements OrderService {
      * 处理支付成功
      */
     private void handlePaymentSuccess(OrderPO orderPO, TransactionUpdateEventDTO transactionUpdateEventDTO) {
-        log.info("处理支付成功: orderNo={}, transactionNo={}, amount={}", 
+        log.info("[handlePaymentSuccess] handle payment success: orderNo={}, transactionNo={}, amount={}", 
                 orderPO.getOrderNo(), 
                 transactionUpdateEventDTO.getTransactionNo(), 
                 transactionUpdateEventDTO.getAmount());
@@ -1302,7 +1336,7 @@ public class OrderServiceImpl implements OrderService {
         // 更新订单信息
         orderMapper.updateById(orderPO);
 
-        log.info("支付成功处理完成: orderNo={}, 订单状态已更新为待出库", orderPO.getOrderNo());
+        log.info("[handlePaymentSuccess] handle payment success completed: orderNo={}, order status updated to wait stock", orderPO.getOrderNo());
     }
 
     /**
