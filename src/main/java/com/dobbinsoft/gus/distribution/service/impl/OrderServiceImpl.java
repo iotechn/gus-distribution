@@ -66,6 +66,7 @@ import com.dobbinsoft.gus.distribution.data.vo.order.OrderPrepayVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundItemVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderStatisticsVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderVO;
 import com.dobbinsoft.gus.distribution.mapper.AddressMapper;
 import com.dobbinsoft.gus.distribution.mapper.CartItemMapper;
@@ -1049,6 +1050,53 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    @Override
+    public OrderStatisticsVO getOrderStatistics() {
+        // 获取当前登录用户ID
+        FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
+        String userId = sessionInfo.getUserId();
+
+        // 创建统计VO
+        OrderStatisticsVO statisticsVO = new OrderStatisticsVO();
+
+        // 统计待付款订单数量
+        QueryWrapper<OrderPO> unpaidWrapper = new QueryWrapper<>();
+        unpaidWrapper.eq("user_id", userId)
+                .eq("status", OrderStatusType.UNPAY.getCode());
+        Long unpaidCount = orderMapper.selectCount(unpaidWrapper);
+        statisticsVO.setUnpaidCount(unpaidCount);
+
+        // 统计待出库订单数量
+        QueryWrapper<OrderPO> waitStockWrapper = new QueryWrapper<>();
+        waitStockWrapper.eq("user_id", userId)
+                .eq("status", OrderStatusType.WAIT_STOCK.getCode());
+        Long waitStockCount = orderMapper.selectCount(waitStockWrapper);
+        statisticsVO.setWaitStockCount(waitStockCount);
+
+        // 统计待收货订单数量
+        QueryWrapper<OrderPO> waitConfirmWrapper = new QueryWrapper<>();
+        waitConfirmWrapper.eq("user_id", userId)
+                .eq("status", OrderStatusType.WAIT_CONFIRM.getCode());
+        Long waitConfirmCount = orderMapper.selectCount(waitConfirmWrapper);
+        statisticsVO.setWaitConfirmCount(waitConfirmCount);
+
+        // 统计待评价订单数量
+        QueryWrapper<OrderPO> waitCommentWrapper = new QueryWrapper<>();
+        waitCommentWrapper.eq("user_id", userId)
+                .eq("status", OrderStatusType.WAIT_COMMENT.getCode());
+        Long waitCommentCount = orderMapper.selectCount(waitCommentWrapper);
+        statisticsVO.setWaitCommentCount(waitCommentCount);
+
+        // 统计退款中订单数量
+        QueryWrapper<OrderPO> refundingWrapper = new QueryWrapper<>();
+        refundingWrapper.eq("user_id", userId)
+                .eq("status", OrderStatusType.REFUNDING.getCode());
+        Long refundingCount = orderMapper.selectCount(refundingWrapper);
+        statisticsVO.setRefundingCount(refundingCount);
+
+        return statisticsVO;
+    }
+
     /**
      * 生成退款单号
      */
@@ -1211,10 +1259,39 @@ public class OrderServiceImpl implements OrderService {
             DeliveryOrderVO data = deliveryOrderResult.getData();
             detailVO.setDeliveryOrder(data);
         }
-        // TODO: 查询退款信息
-        detailVO.setRefunds(new ArrayList<>());
+        
+        // 查询退款信息
+        List<OrderRefundPO> refundPOs = orderRefundMapper.selectList(
+            new QueryWrapper<OrderRefundPO>()
+                .eq("order_id", orderPO.getId())
+                .orderByDesc("created_time")
+        );
+        
+        List<OrderDetailVO.OrderRefundVO> refundVOs = refundPOs.stream()
+            .map(this::convertToOrderDetailRefundVO)
+            .collect(Collectors.toList());
+        detailVO.setRefunds(refundVOs);
 
         return detailVO;
+    }
+    
+    /**
+     * 转换为OrderDetailVO.OrderRefundVO
+     */
+    private OrderDetailVO.OrderRefundVO convertToOrderDetailRefundVO(OrderRefundPO refundPO) {
+        OrderDetailVO.OrderRefundVO refundVO = new OrderDetailVO.OrderRefundVO();
+        refundVO.setId(refundPO.getId());
+        refundVO.setRefundNo(refundPO.getRefundNo());
+        refundVO.setOrderItemId(refundPO.getOrderItemId());
+        refundVO.setStatus(refundPO.getStatus());
+        refundVO.setStatusMsg(RefundStatusType.getStatusByCode(refundPO.getStatus()).getMsg());
+        refundVO.setRefundAmount(refundPO.getRefundAmount());
+        refundVO.setReason(refundPO.getReason());
+        refundVO.setRemark(refundPO.getRemark());
+        refundVO.setInnerRemark(refundPO.getInnerRemark());
+        refundVO.setCreateTime(refundPO.getCreatedTime());
+        refundVO.setApprovalTime(refundPO.getApprovalTime());
+        return refundVO;
     }
 
     /**

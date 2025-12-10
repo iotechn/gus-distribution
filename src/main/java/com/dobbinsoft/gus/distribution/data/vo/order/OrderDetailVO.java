@@ -1,13 +1,14 @@
 package com.dobbinsoft.gus.distribution.data.vo.order;
 
-import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
+
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -33,7 +34,16 @@ public class OrderDetailVO extends OrderListVO {
         @Schema(description = "订单商品项ID", example = "order_item_123")
         private String orderItemId;
         
-        @Schema(description = "退款状态", example = "1")
+        /**
+         * PENDING(1, "待审核"),
+         * APPROVED(2, "已同意"),
+         * REJECTED(3, "已拒绝"),
+         * PROCESSING(4, "退款处理中"),
+         * SUCCESS(5, "退款成功"),
+         * FAILED(6, "退款失败"),
+         * CANCELLED(7, "已取消");
+         */
+        @Schema(description = "退款状态 1:待审核, 2:已同意, 3:已拒绝, 4:退款处理中, 5:退款成功, 6:退款失败, 7:已取消", example = "1")
         private Integer status;
         
         @Schema(description = "退款状态描述", example = "退款中")
