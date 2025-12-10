@@ -31,9 +31,6 @@ public class OrderDetailVO extends OrderListVO {
         @Schema(description = "退款单号", example = "R202412011234567890")
         private String refundNo;
         
-        @Schema(description = "订单商品项ID", example = "order_item_123")
-        private String orderItemId;
-        
         /**
          * PENDING(1, "待审核"),
          * APPROVED(2, "已同意"),
