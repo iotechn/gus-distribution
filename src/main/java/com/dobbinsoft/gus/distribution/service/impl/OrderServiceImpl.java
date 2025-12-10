@@ -1282,7 +1282,6 @@ public class OrderServiceImpl implements OrderService {
         OrderDetailVO.OrderRefundVO refundVO = new OrderDetailVO.OrderRefundVO();
         refundVO.setId(refundPO.getId());
         refundVO.setRefundNo(refundPO.getRefundNo());
-        refundVO.setOrderItemId(refundPO.getOrderItemId());
         refundVO.setStatus(refundPO.getStatus());
         refundVO.setStatusMsg(RefundStatusType.getStatusByCode(refundPO.getStatus()).getMsg());
         refundVO.setRefundAmount(refundPO.getRefundAmount());

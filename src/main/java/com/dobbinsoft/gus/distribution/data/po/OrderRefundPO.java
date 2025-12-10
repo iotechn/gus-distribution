@@ -1,14 +1,15 @@
 package com.dobbinsoft.gus.distribution.data.po;
 
-import com.baomidou.mybatisplus.annotation.TableName;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Getter;
-import lombok.Setter;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -27,10 +28,6 @@ public class OrderRefundPO extends BasePO {
     @Schema(description = "订单号")
     @NotBlank(message = "订单号不能为空")
     private String orderNo;
-
-    @Schema(description = "订单商品项ID")
-    @NotBlank(message = "订单商品项ID不能为空")
-    private String orderItemId;
 
     @Schema(description = "用户ID")
     @NotBlank(message = "用户ID不能为空")
