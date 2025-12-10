@@ -1,22 +1,24 @@
 package com.dobbinsoft.gus.distribution.service;
 
+import java.util.List;
+
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionUpdateEventDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderPrepayDTO;
-import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApplyDTO;
+import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSubmitDTO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO;
-import com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderPrepayVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderStatisticsVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderVO;
-import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionUpdateEventDTO;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.util.List;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "订单服务", description = "订单相关业务逻辑")
 public interface OrderService {
@@ -119,6 +121,12 @@ public interface OrderService {
      * @return 订单分页结果
      */
     PageResult<OrderListVO> getUserOrders(FoOrderSearchDTO searchDTO);
+
+    /**
+     * 获取当前登录用户的订单统计信息
+     * @return 订单统计信息
+     */
+    OrderStatisticsVO getOrderStatistics();
 
     // ========== 支付回调接口 ==========
 

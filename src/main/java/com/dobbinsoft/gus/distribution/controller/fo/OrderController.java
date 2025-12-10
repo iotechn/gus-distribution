@@ -1,19 +1,33 @@
 package com.dobbinsoft.gus.distribution.controller.fo;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.dobbinsoft.gus.common.model.vo.PageResult;
 import com.dobbinsoft.gus.distribution.data.constant.DistributionConstants;
-import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
-import com.dobbinsoft.gus.web.vo.R;
 import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderPrepayDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApplyDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSubmitDTO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO;
-import com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderPrepayVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderPreviewVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderRefundVO;
+import com.dobbinsoft.gus.distribution.data.vo.order.OrderStatisticsVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderVO;
 import com.dobbinsoft.gus.distribution.service.OrderService;
+import com.dobbinsoft.gus.web.vo.R;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,9 +37,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/fo/order")
@@ -47,6 +58,18 @@ public class OrderController {
             @Valid @RequestBody FoOrderSearchDTO searchDTO) {
         PageResult<OrderListVO> result = orderService.getUserOrders(searchDTO);
         return R.success(result);
+    }
+
+    @GetMapping("/statistics")
+    @Operation(summary = "获取订单统计", description = "获取当前登录用户的订单统计信息，包括待付款、待出库、待收货、待评价、退款中的订单数量")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "获取成功", 
+            content = @Content(schema = @Schema(implementation = OrderStatisticsVO.class))),
+        @ApiResponse(responseCode = "401", description = "用户未登录")
+    })
+    public R<OrderStatisticsVO> getStatistics() {
+        OrderStatisticsVO statistics = orderService.getOrderStatistics();
+        return R.success(statistics);
     }
 
     @PostMapping("/preview")
