@@ -1290,6 +1290,32 @@ public class OrderServiceImpl implements OrderService {
         refundVO.setInnerRemark(refundPO.getInnerRemark());
         refundVO.setCreateTime(refundPO.getCreatedTime());
         refundVO.setApprovalTime(refundPO.getApprovalTime());
+        
+        // 查询退款项
+        List<OrderRefundItemPO> refundItemPOs = orderRefundItemMapper.selectList(
+            new QueryWrapper<OrderRefundItemPO>()
+                .eq("refund_id", refundPO.getId())
+        );
+        
+        // 转换为OrderRefundItemVO
+        List<OrderRefundItemVO> refundItemVOs = refundItemPOs.stream()
+            .map(itemPO -> {
+                OrderRefundItemVO itemVO = new OrderRefundItemVO();
+                itemVO.setId(itemPO.getId());
+                itemVO.setRefundId(itemPO.getRefundId());
+                itemVO.setOrderItemId(itemPO.getOrderItemId());
+                itemVO.setItemName(itemPO.getItemName());
+                itemVO.setSkuName(itemPO.getSkuName());
+                itemVO.setSmc(itemPO.getSmc());
+                itemVO.setSku(itemPO.getSku());
+                itemVO.setRefundQty(itemPO.getRefundQty());
+                itemVO.setPrice(itemPO.getPrice());
+                itemVO.setRefundAmount(itemPO.getRefundAmount());
+                itemVO.setRemark(itemPO.getRemark());
+                return itemVO;
+            }).toList();
+        refundVO.setRefundItems(refundItemVOs);
+        
         return refundVO;
     }
 

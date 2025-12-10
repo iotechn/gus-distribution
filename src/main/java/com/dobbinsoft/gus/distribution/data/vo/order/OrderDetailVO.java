@@ -63,5 +63,8 @@ public class OrderDetailVO extends OrderListVO {
         
         @Schema(description = "审核时间", example = "2024-12-01T14:00:00Z")
         private ZonedDateTime approvalTime;
+        
+        @Schema(description = "退款项列表")
+        private List<OrderRefundItemVO> refundItems;
     }
 }
