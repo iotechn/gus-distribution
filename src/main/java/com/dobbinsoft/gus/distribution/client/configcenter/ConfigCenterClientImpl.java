@@ -161,6 +161,8 @@ public class ConfigCenterClientImpl implements ConfigCenterClient {
 
         // 小程序订单同步默认开启
         config.setEnableMpOrderSync(true);
+        // 发货后自动打包默认关闭
+        config.setEnableAutoPackage(false);
 
         return config;
     }

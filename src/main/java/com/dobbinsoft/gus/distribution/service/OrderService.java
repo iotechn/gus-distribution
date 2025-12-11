@@ -3,6 +3,7 @@ package com.dobbinsoft.gus.distribution.service;
 import java.util.List;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
 import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionUpdateEventDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.FoOrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderPrepayDTO;
@@ -76,6 +77,13 @@ public interface OrderService {
      * @param orderNo 订单号
      */
     void confirmReceipt(String orderNo);
+
+    /**
+     * 发货创建配送单
+     * @param orderNo 订单号
+     * @return 配送单信息
+     */
+    DeliveryOrderVO deliver(String orderNo);
 
     /**
      * 审核退款申请

@@ -3,8 +3,6 @@ package com.dobbinsoft.gus.distribution.client.configcenter.vo;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
-
 @Data
 @Slf4j
 public class ConfigContentPublicVO {
@@ -75,4 +73,8 @@ public class ConfigContentPublicVO {
      */
     private Boolean enableMpOrderSync;
 
+    /**
+     * 是否自动标记打包完成，默认关闭
+     */
+    private Boolean enableAutoPackage;
 }

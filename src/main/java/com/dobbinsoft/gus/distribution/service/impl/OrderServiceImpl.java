@@ -22,12 +22,16 @@ import org.springframework.util.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.configcenter.ConfigCenterClient;
+import com.dobbinsoft.gus.distribution.client.configcenter.vo.ConfigContentVO;
 import com.dobbinsoft.gus.distribution.client.gus.location.LocationFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.location.model.LocationVO;
 import com.dobbinsoft.gus.distribution.client.gus.logistics.DeliveryFeeFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.logistics.DeliveryOrderFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryFeePreviewDTO;
 import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryFeePreviewVO;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderCreateDTO;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderPackCompleteDTO;
 import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
 import com.dobbinsoft.gus.distribution.client.gus.payment.TransactionFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionCreateDTO;
@@ -108,6 +112,7 @@ public class OrderServiceImpl implements OrderService {
     private final DeliveryFeeFeignClient deliveryFeeFeignClient;
     private final DeliveryOrderFeignClient deliveryOrderFeignClient;
     private final LocationFeignClient locationFeignClient;
+    private final ConfigCenterClient configCenterClient;
 
     @Override
     public OrderPreviewVO preview(OrderSubmitDTO submitDTO, String locationCode) {
@@ -674,6 +679,59 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public DeliveryOrderVO deliver(String orderNo) {
+        // 校验后台会话
+        SessionUtils.getBoSession();
+
+        OrderPO orderPO = orderMapper.selectOne(
+                new QueryWrapper<OrderPO>()
+                        .eq("order_no", orderNo)
+        );
+        if (orderPO == null) {
+            throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单不存在");
+        }
+        if (!OrderStatusType.WAIT_STOCK.getCode().equals(orderPO.getStatus())) {
+            throw new ServiceException(DistributionErrorCode.ORDER_STATUS_INVALID, "订单状态不允许发货");
+        }
+        if (StringUtils.hasText(orderPO.getDeliveryNo())) {
+            throw new ServiceException(DistributionErrorCode.ORDER_STATUS_INVALID, "订单已发货，请勿重复操作");
+        }
+
+        R<LocationVO> locationResult = locationFeignClient.detail(orderPO.getLocationCode());
+        if (!BasicErrorCode.SUCCESS.getCode().equals(locationResult.getCode()) || locationResult.getData() == null) {
+            throw new ServiceException(locationResult.getCode(), locationResult.getMessage());
+        }
+        LocationVO locationVO = locationResult.getData();
+
+        DeliveryOrderCreateDTO createDTO = buildDeliveryOrderCreateDTO(orderPO, locationVO);
+        R<DeliveryOrderVO> deliveryResponse = deliveryOrderFeignClient.create(createDTO);
+        if (!BasicErrorCode.SUCCESS.getCode().equals(deliveryResponse.getCode()) || deliveryResponse.getData() == null) {
+            throw new ServiceException(deliveryResponse.getCode(), deliveryResponse.getMessage());
+        }
+        DeliveryOrderVO deliveryOrderVO = deliveryResponse.getData();
+
+        orderPO.setDeliveryNo(deliveryOrderVO.getDeliveryNo());
+        orderPO.setDeliveryTime(ZonedDateTime.now());
+        orderPO.setStatus(OrderStatusType.WAIT_CONFIRM.getCode());
+        orderMapper.updateById(orderPO);
+
+        ConfigContentVO configContent = configCenterClient.getBrandAllConfigContent();
+        if (configContent != null && Boolean.TRUE.equals(configContent.getEnableAutoPackage())) {
+            DeliveryOrderPackCompleteDTO packCompleteDTO = new DeliveryOrderPackCompleteDTO();
+            packCompleteDTO.setOrderNo(orderNo);
+            packCompleteDTO.setDeliveryNo(deliveryOrderVO.getDeliveryNo());
+            R<Void> packResult = deliveryOrderFeignClient.packComplete(packCompleteDTO);
+            if (!BasicErrorCode.SUCCESS.getCode().equals(packResult.getCode())) {
+                throw new ServiceException(packResult.getCode(), packResult.getMessage());
+            }
+        }
+
+        log.info("订单发货成功: orderNo={}, deliveryNo={}", orderNo, deliveryOrderVO.getDeliveryNo());
+        return deliveryOrderVO;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void confirmReceipt(String orderNo) {
         // 获取用户信息
         FoSessionInfoDTO sessionInfo = SessionUtils.getFoSession();
@@ -698,6 +756,35 @@ public class OrderServiceImpl implements OrderService {
         orderMapper.updateById(orderPO);
         
         log.info("订单确认收货成功: orderNo={}", orderNo);
+    }
+
+    private DeliveryOrderCreateDTO buildDeliveryOrderCreateDTO(OrderPO orderPO, LocationVO locationVO) {
+        if (orderPO.getAddress() == null) {
+            throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单收货地址不存在");
+        }
+        DeliveryOrderCreateDTO createDTO = new DeliveryOrderCreateDTO();
+        createDTO.setOrderNo(orderPO.getOrderNo());
+        createDTO.setLocationCode(orderPO.getLocationCode());
+        createDTO.setRemark(orderPO.getRemark());
+        createDTO.setEnablePickupCode(true);
+        createDTO.setEnableSignCode(true);
+
+        DeliveryOrderCreateDTO.Address receiver = new DeliveryOrderCreateDTO.Address();
+        receiver.setName(orderPO.getAddress().getUserName());
+        receiver.setMobile(orderPO.getAddress().getTelNumber());
+        receiver.setAddress(orderPO.getAddress().getDetailAddress());
+        receiver.setLongitude(orderPO.getAddress().getLongitude());
+        receiver.setLatitude(orderPO.getAddress().getLatitude());
+        createDTO.setReceiver(receiver);
+
+        DeliveryOrderCreateDTO.Address sender = new DeliveryOrderCreateDTO.Address();
+        sender.setName(locationVO.getName());
+        sender.setMobile(StringUtils.hasText(locationVO.getMobile()) ? locationVO.getMobile() : locationVO.getTelephone());
+        sender.setAddress(locationVO.getAddress());
+        sender.setLongitude(locationVO.getLongitude());
+        sender.setLatitude(locationVO.getLatitude());
+        createDTO.setSender(sender);
+        return createDTO;
     }
 
     @Override
