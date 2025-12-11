@@ -31,6 +31,8 @@ import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryFeePre
 import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
 import com.dobbinsoft.gus.distribution.client.gus.payment.TransactionFeignClient;
 import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionCreateDTO;
+import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionRefundDTO;
+import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionRefundVO;
 import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionStatus;
 import com.dobbinsoft.gus.distribution.client.gus.payment.model.TransactionUpdateEventDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.ProductItemFeignClient;
@@ -47,6 +49,7 @@ import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundItemDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSubmitDTO;
+import com.dobbinsoft.gus.distribution.data.dto.session.BoSessionInfoDTO;
 import com.dobbinsoft.gus.distribution.data.dto.session.FoSessionInfoDTO;
 import com.dobbinsoft.gus.distribution.data.enums.CurrencyCode;
 import com.dobbinsoft.gus.distribution.data.enums.OrderStatusType;
@@ -700,17 +703,267 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void approveRefund(String orderNo, OrderRefundApprovalDTO approvalDTO) {
-        // 这里需要OrderRefundMapper，暂时简化处理
-        // 实际应该查询退款记录，更新退款状态等
+        // 获取管理员信息
+        BoSessionInfoDTO sessionInfo = SessionUtils.getBoSession();
+
         log.info("退款审核: orderNo={}, refundId={}, approved={}, remark={}", 
             orderNo, approvalDTO.getRefundId(), approvalDTO.getApproved(), approvalDTO.getRemark());
         
-        // TODO: 实现退款审核逻辑
         // 1. 查询退款记录
+        OrderRefundPO refundPO = orderRefundMapper.selectById(approvalDTO.getRefundId());
+        if (refundPO == null) {
+            throw new ServiceException(BasicErrorCode.NO_RESOURCE, "退款记录不存在");
+        }
+
+        // 验证订单号是否匹配
+        if (!refundPO.getOrderNo().equals(orderNo)) {
+            throw new ServiceException(BasicErrorCode.PARAMERROR, "订单号不匹配");
+        }
+
         // 2. 检查退款状态
-        // 3. 更新退款状态
-        // 4. 如果同意退款，处理退款逻辑
-        // 5. 更新订单状态
+        if (!RefundStatusType.canApprove(refundPO.getStatus())) {
+            throw new ServiceException(DistributionErrorCode.REFUND_STATUS_INVALID, 
+                "退款状态不允许审核，当前状态: " + RefundStatusType.getStatusByCode(refundPO.getStatus()).getMsg());
+        }
+
+        // 查询订单信息
+        OrderPO orderPO = orderMapper.selectById(Long.valueOf(refundPO.getOrderId()));
+        if (orderPO == null) {
+            throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单不存在");
+        }
+
+        // 3. 根据审核结果处理
+        if (Boolean.TRUE.equals(approvalDTO.getApproved())) {
+            approveRefundInternal(refundPO, orderPO, sessionInfo, approvalDTO);
+        } else {
+            rejectRefundInternal(refundPO, orderPO, sessionInfo, approvalDTO);
+        }
+    }
+
+    /**
+     * 同意退款处理
+     * 先补库存，再调用支付服务，避免支付成功后库存回补失败导致的问题
+     */
+    private void approveRefundInternal(OrderRefundPO refundPO, OrderPO orderPO, 
+            BoSessionInfoDTO sessionInfo, OrderRefundApprovalDTO approvalDTO) {
+        // 更新退款状态为已同意
+        refundPO.setStatus(RefundStatusType.APPROVED.getCode());
+        refundPO.setApproverId(sessionInfo.getUserId());
+        refundPO.setApprovalTime(ZonedDateTime.now());
+        refundPO.setRemark(approvalDTO.getRemark());
+        refundPO.setInnerRemark(approvalDTO.getInnerRemark());
+        orderRefundMapper.updateById(refundPO);
+
+        // 1. 先回补库存（仅对库存型商品）
+        // 如果补库存失败，可以回滚，避免支付已成功但库存未回补的问题
+        restoreStockForRefund(refundPO, orderPO);
+
+        // 2. 调用支付服务进行退款
+        try {
+            TransactionRefundDTO refundDTO = new TransactionRefundDTO();
+            refundDTO.setProviderId(orderPO.getPayMethod());
+            refundDTO.setApplicationName("gus-distribution"); // 从配置获取，这里简化处理
+            refundDTO.setOrderNo(orderPO.getOrderNo());
+            refundDTO.setRefundNo(refundPO.getRefundNo());
+            refundDTO.setRefundAmount(refundPO.getRefundAmount());
+            refundDTO.setReason(refundPO.getReason());
+
+            R<TransactionRefundVO> refundResult = transactionFeignClient.refund(refundDTO);
+            if (!BasicErrorCode.SUCCESS.getCode().equals(refundResult.getCode())) {
+                throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, 
+                    "调用支付服务退款失败: " + refundResult.getMessage());
+            }
+
+            // 更新退款状态为处理中
+            refundPO.setStatus(RefundStatusType.PROCESSING.getCode());
+            refundPO.setProcessTime(ZonedDateTime.now());
+            orderRefundMapper.updateById(refundPO);
+
+            log.info("支付服务退款申请成功: refundNo={}, refundAmount={}", 
+                refundPO.getRefundNo(), refundPO.getRefundAmount());
+        } catch (Exception e) {
+            log.error("调用支付服务退款失败", e);
+            throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "退款处理失败: " + e.getMessage());
+        }
+
+        // 3. 更新订单状态
+        updateOrderStatusAfterRefundApproved(refundPO, orderPO);
+
+        log.info("退款审核通过: refundId={}, refundNo={}, refundAmount={}", 
+            refundPO.getId(), refundPO.getRefundNo(), refundPO.getRefundAmount());
+    }
+
+    /**
+     * 拒绝退款处理
+     */
+    private void rejectRefundInternal(OrderRefundPO refundPO, OrderPO orderPO, 
+            BoSessionInfoDTO sessionInfo, OrderRefundApprovalDTO approvalDTO) {
+        // 更新退款状态为已拒绝
+        refundPO.setStatus(RefundStatusType.REJECTED.getCode());
+        refundPO.setApproverId(sessionInfo.getUserId());
+        refundPO.setApprovalTime(ZonedDateTime.now());
+        refundPO.setRemark(approvalDTO.getRemark());
+        refundPO.setInnerRemark(approvalDTO.getInnerRemark());
+        orderRefundMapper.updateById(refundPO);
+
+        // 如果订单状态是退款中，检查是否需要恢复订单状态
+        if (OrderStatusType.REFUNDING.getCode().equals(orderPO.getStatus())) {
+            // 检查是否还有其他待处理的退款
+            long pendingRefundCount = orderRefundMapper.selectCount(
+                new QueryWrapper<OrderRefundPO>()
+                    .eq("order_id", refundPO.getOrderId())
+                    .in("status",
+                        RefundStatusType.PENDING.getCode(),
+                        RefundStatusType.APPROVED.getCode(),
+                        RefundStatusType.PROCESSING.getCode())
+            );
+
+            if (pendingRefundCount == 0) {
+                // 没有其他待处理的退款，恢复订单状态
+                // 根据订单当前状态恢复：如果已支付则恢复为待出库，如果已发货则恢复为待收货
+                if (orderPO.getPayTime() != null) {
+                    if (orderPO.getDeliveryTime() != null) {
+                        orderPO.setStatus(OrderStatusType.WAIT_CONFIRM.getCode());
+                    } else {
+                        orderPO.setStatus(OrderStatusType.WAIT_STOCK.getCode());
+                    }
+                    orderMapper.updateById(orderPO);
+                }
+            }
+        }
+
+        log.info("退款审核拒绝: refundId={}, refundNo={}, reason={}", 
+            refundPO.getId(), refundPO.getRefundNo(), approvalDTO.getRemark());
+    }
+
+    /**
+     * 为退款回补库存（仅对库存型商品）
+     */
+    private void restoreStockForRefund(OrderRefundPO refundPO, OrderPO orderPO) {
+        List<OrderRefundItemPO> refundItemPOs = orderRefundItemMapper.selectList(
+            new QueryWrapper<OrderRefundItemPO>()
+                .eq("refund_id", refundPO.getId())
+        );
+
+        if (CollectionUtils.isEmpty(refundItemPOs)) {
+            return;
+        }
+
+        // 查询订单商品项，获取SKU信息
+        List<String> orderItemIds = refundItemPOs.stream()
+            .map(OrderRefundItemPO::getOrderItemId)
+            .distinct()
+            .collect(Collectors.toList());
+        
+        List<OrderItemPO> orderItemPOs = orderItemMapper.selectList(
+            new QueryWrapper<OrderItemPO>()
+                .in("id", orderItemIds)
+        );
+
+        // 批量查询商品，判断是否库存型
+        List<String> skuList = orderItemPOs.stream()
+            .map(OrderItemPO::getSku)
+            .distinct()
+            .collect(Collectors.toList());
+        
+        ItemSearchDTO searchDTO = new ItemSearchDTO();
+        searchDTO.setSku(skuList);
+        searchDTO.setPageNum(1);
+        searchDTO.setPageSize(Math.max(100, skuList.size()));
+
+        R<PageResult<ItemVO>> itemResp = productItemFeignClient.search(searchDTO);
+        if (!BasicErrorCode.SUCCESS.getCode().equals(itemResp.getCode()) || itemResp.getData() == null) {
+            log.warn("查询商品信息失败，跳过库存回补: {}", itemResp.getMessage());
+            return;
+        }
+
+        List<ItemVO> itemVOs = Optional.ofNullable(itemResp.getData().getData())
+            .orElse(Collections.emptyList());
+        
+        // 映射sku到是否库存型
+        Set<String> stockableSkus = new HashSet<>();
+        for (ItemVO itemVO : itemVOs) {
+            boolean stockable = Boolean.TRUE.equals(itemVO.getStockable());
+            if (stockable && itemVO.getSkus() != null) {
+                for (ItemVO.ItemSkuVO skuVO : itemVO.getSkus()) {
+                    if (skuList.contains(skuVO.getSku())) {
+                        stockableSkus.add(skuVO.getSku());
+                    }
+                }
+            }
+        }
+
+        // 构建库存回补请求
+        List<BatchStockAdjustDTO.ItemDTO> adjustItems = new ArrayList<>();
+        String locationCode = orderPO.getLocationCode();
+        for (OrderRefundItemPO refundItemPO : refundItemPOs) {
+            OrderItemPO orderItemPO = orderItemPOs.stream()
+                .filter(item -> item.getId().equals(refundItemPO.getOrderItemId()))
+                .findFirst()
+                .orElse(null);
+            
+            if (orderItemPO != null && stockableSkus.contains(orderItemPO.getSku())) {
+                BatchStockAdjustDTO.ItemDTO itemDTO = new BatchStockAdjustDTO.ItemDTO();
+                itemDTO.setLocationCode(locationCode);
+                itemDTO.setSku(orderItemPO.getSku());
+                itemDTO.setOperation(BatchStockAdjustDTO.Operation.ADD);
+                itemDTO.setQuantity(BigDecimal.valueOf(refundItemPO.getRefundQty()));
+                adjustItems.add(itemDTO);
+            }
+        }
+
+        // 调用库存服务回补库存
+        if (!adjustItems.isEmpty()) {
+            BatchStockAdjustDTO batch = new BatchStockAdjustDTO();
+            batch.setItems(adjustItems);
+            R<Void> resp = productStockFeignClient.adjustStock(batch);
+            if (!BasicErrorCode.SUCCESS.getCode().equals(resp.getCode())) {
+                log.error("回补库存失败: {}", resp.getMessage());
+                throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, 
+                    "回补库存失败: " + resp.getMessage());
+            }
+            log.info("回补库存成功: refundNo={}, items={}", refundPO.getRefundNo(), adjustItems.size());
+        }
+    }
+
+    /**
+     * 更新订单状态（退款审核通过后）
+     */
+    private void updateOrderStatusAfterRefundApproved(OrderRefundPO refundPO, OrderPO orderPO) {
+        // 检查是否还有其他待处理的退款
+        long pendingRefundCount = orderRefundMapper.selectCount(
+            new QueryWrapper<OrderRefundPO>()
+                .eq("order_id", refundPO.getOrderId())
+                .in("status",
+                    RefundStatusType.PENDING.getCode(),
+                    RefundStatusType.APPROVED.getCode(),
+                    RefundStatusType.PROCESSING.getCode())
+                .ne("id", refundPO.getId()) // 排除当前退款
+        );
+
+        // 如果没有其他待处理的退款，检查是否全部退款
+        if (pendingRefundCount == 0) {
+            // 计算已退款总金额
+            BigDecimal totalRefundedAmount = orderRefundMapper.selectList(
+                new QueryWrapper<OrderRefundPO>()
+                    .eq("order_id", refundPO.getOrderId())
+                    .in("status",
+                        RefundStatusType.APPROVED.getCode(),
+                        RefundStatusType.PROCESSING.getCode(),
+                        RefundStatusType.SUCCESS.getCode())
+            ).stream()
+                .map(OrderRefundPO::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // 如果退款金额等于或大于订单金额，订单状态设为已退款
+            if (totalRefundedAmount.compareTo(orderPO.getPayAmount()) >= 0) {
+                orderPO.setStatus(OrderStatusType.REFUNDED.getCode());
+            } else {
+                // 部分退款，保持退款中状态
+                orderPO.setStatus(OrderStatusType.REFUNDING.getCode());
+            }
+            orderMapper.updateById(orderPO);
+        }
     }
 
     // ========== 前台退款接口实现 ==========
