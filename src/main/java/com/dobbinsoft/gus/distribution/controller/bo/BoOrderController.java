@@ -1,12 +1,22 @@
 package com.dobbinsoft.gus.distribution.controller.bo;
 
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.gus.logistics.model.DeliveryOrderVO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderRefundApprovalDTO;
 import com.dobbinsoft.gus.distribution.data.dto.order.OrderSearchDTO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderDetailVO;
 import com.dobbinsoft.gus.distribution.data.vo.order.OrderListVO;
 import com.dobbinsoft.gus.distribution.service.OrderService;
 import com.dobbinsoft.gus.web.vo.R;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,7 +24,6 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "后台-订单管理", description = "订单的查询、发货、退款等管理操作")
 @RestController
@@ -42,13 +51,13 @@ public class BoOrderController {
         return R.success(orderDetail);
     }
 
-    @Operation(summary = "确认收货", description = "确认订单已收货，更新订单状态")
-    @PutMapping("/{orderNo}/confirm-receipt")
-    public R<Void> confirmReceipt(
+    @Operation(summary = "订单发货", description = "创建配送单并可自动打包")
+    @PostMapping("/{orderNo}/deliver")
+    public R<DeliveryOrderVO> deliver(
             @Parameter(description = "订单号", required = true, example = "O202412011234567890")
             @PathVariable String orderNo) {
-        orderService.confirmReceipt(orderNo);
-        return R.success();
+        DeliveryOrderVO deliveryOrder = orderService.deliver(orderNo);
+        return R.success(deliveryOrder);
     }
 
     @Operation(summary = "审核退款申请", description = "审核客户的退款申请")
