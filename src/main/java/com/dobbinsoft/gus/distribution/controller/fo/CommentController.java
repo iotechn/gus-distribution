@@ -1,6 +1,7 @@
 package com.dobbinsoft.gus.distribution.controller.fo;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -11,8 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.gus.file.FileFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.file.model.FileItemVO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentQueryDTO;
 import com.dobbinsoft.gus.distribution.data.vo.comment.CommentVO;
@@ -35,9 +39,45 @@ import lombok.RequiredArgsConstructor;
 public class CommentController {
 
     private final CommentService commentService;
+    private final FileFeignClient fileFeignClient;
+
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/bmp"
+    );
+    private static final int COMMENT_IMAGE_EXPIRY_SECONDS = 7200; // 2小时
+
+    @PostMapping("/image/upload")
+    @Operation(summary = "上传评论图片", description = "上传评论图片，返回临时文件ID（2小时有效）")
+    public R<String> uploadCommentImage(
+            @Parameter(description = "图片文件") @RequestParam("file") MultipartFile file) {
+        // 校验文件是否为空
+        if (file == null || file.isEmpty()) {
+            throw new ServiceException(BasicErrorCode.PARAMERROR, "文件不能为空");
+        }
+
+        // 校验文件类型是否为图片
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
+            throw new ServiceException(BasicErrorCode.PARAMERROR, "只能上传图片文件（支持 jpg、png、gif、webp、bmp 格式）");
+        }
+
+        // 上传文件到文件服务，设置为临时文件，2小时后过期
+        R<FileItemVO> uploadResult = fileFeignClient.uploadFile(
+                file,
+                true, // 私有文件
+                "comment", // 文件夹
+                COMMENT_IMAGE_EXPIRY_SECONDS // 2小时过期
+        );
+
+        if (uploadResult == null || uploadResult.getData() == null) {
+            throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "文件上传失败");
+        }
+
+        return R.success(uploadResult.getData().getId());
+    }
 
     @PostMapping
-    @Operation(summary = "创建评论", description = "用户对订单商品进行评论")
+    @Operation(summary = "创建评论", description = "用户对订单商品进行评论，需要传入之前上传的图片文件ID")
     public R<Void> createComment(
             @Valid @RequestBody CommentCreateDTO commentCreateDTO) {
         commentService.createComment(commentCreateDTO);

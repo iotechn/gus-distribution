@@ -40,6 +40,7 @@ gus:
     logistics-url: ${DISTRIBUTION_LOGISTICS_URL:http://gus-logistics}
     location-url: ${DISTRIBUTION_LOCATION_URL:http://gus-location}
     product-url: ${DISTRIBUTION_PRODUCT_URL:http://gus-product}
+    file-url: ${DISTRIBUTION_FILE_URL:http://gus-file}
     expires-in: ${DISTRIBUTION_TOKEN_EXPIRE:7200}
     refresh-expires-in: ${DISTRIBUTION_REFRESH_TOKEN_EXPIRE:2592000}
     private-key: ${DISTRIBUTION_TOKEN_PRIVATE_KEY}
