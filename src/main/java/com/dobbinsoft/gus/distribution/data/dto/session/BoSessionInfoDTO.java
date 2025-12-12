@@ -6,6 +6,4 @@ import lombok.Data;
 public class BoSessionInfoDTO {
     private String employeeEmail;
     private String userId;
-    private String name;
-    private String clientId;
 }
