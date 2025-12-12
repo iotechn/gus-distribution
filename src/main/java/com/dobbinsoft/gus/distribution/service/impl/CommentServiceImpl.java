@@ -1,8 +1,20 @@
 package com.dobbinsoft.gus.distribution.service.impl;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.gus.file.FileFeignClient;
+import com.dobbinsoft.gus.distribution.client.gus.file.model.FileItemVO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentCreateDTO;
 import com.dobbinsoft.gus.distribution.data.dto.comment.CommentQueryDTO;
 import com.dobbinsoft.gus.distribution.data.enums.OrderStatusType;
@@ -18,18 +30,12 @@ import com.dobbinsoft.gus.distribution.mapper.OrderItemMapper;
 import com.dobbinsoft.gus.distribution.mapper.OrderMapper;
 import com.dobbinsoft.gus.distribution.service.CommentService;
 import com.dobbinsoft.gus.distribution.utils.SessionUtils;
+import com.dobbinsoft.gus.web.exception.BasicErrorCode;
 import com.dobbinsoft.gus.web.exception.ServiceException;
+import com.dobbinsoft.gus.web.vo.R;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -40,6 +46,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentImageMapper commentImageMapper;
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
+    private final FileFeignClient fileFeignClient;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -104,16 +111,34 @@ public class CommentServiceImpl implements CommentService {
             comment.setOrderNo(commentCreateDTO.getOrderNo());
             comment.setContent(commentItem.getContent());
             comment.setScore(commentItem.getScore());
-            comment.setHasImage(!CollectionUtils.isEmpty(commentItem.getImageUrls()));
+            comment.setHasImage(!CollectionUtils.isEmpty(commentItem.getFileIds()));
 
             commentMapper.insert(comment);
 
-            // 处理评论图片
-            if (!CollectionUtils.isEmpty(commentItem.getImageUrls())) {
-                for (int i = 0; i < commentItem.getImageUrls().size(); i++) {
+            // 处理评论图片：确认临时文件为永久文件，并保存图片URL
+            if (!CollectionUtils.isEmpty(commentItem.getFileIds())) {
+                for (int i = 0; i < commentItem.getFileIds().size(); i++) {
+                    String fileId = commentItem.getFileIds().get(i);
+                    
+                    // 确认文件为永久文件
+                    R<FileItemVO> confirmResult = fileFeignClient.confirmFile(fileId);
+                    if (confirmResult == null || confirmResult.getData() == null) {
+                        throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "文件确认失败，文件ID: " + fileId);
+                    }
+                    
+                    FileItemVO fileItem = confirmResult.getData();
+                    // 使用path作为图片URL，如果path为空则使用storagePath
+                    String imageUrl = StringUtils.hasText(fileItem.getPath()) 
+                            ? fileItem.getPath() 
+                            : fileItem.getStoragePath();
+                    
+                    if (!StringUtils.hasText(imageUrl)) {
+                        throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "文件URL获取失败，文件ID: " + fileId);
+                    }
+                    
                     CommentImagePO commentImage = new CommentImagePO();
                     commentImage.setCommentId(comment.getId());
-                    commentImage.setImageUrl(commentItem.getImageUrls().get(i));
+                    commentImage.setImageUrl(imageUrl);
                     commentImage.setSortOrder(i + 1);
                     commentImageMapper.insert(commentImage);
                 }

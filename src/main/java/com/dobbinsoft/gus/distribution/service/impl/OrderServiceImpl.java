@@ -814,7 +814,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 查询订单信息
-        OrderPO orderPO = orderMapper.selectById(Long.valueOf(refundPO.getOrderId()));
+        OrderPO orderPO = orderMapper.selectById(refundPO.getOrderId());
         if (orderPO == null) {
             throw new ServiceException(BasicErrorCode.NO_RESOURCE, "订单不存在");
         }
