@@ -681,8 +681,6 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public DeliveryOrderVO deliver(String orderNo) {
         // 校验后台会话
-        SessionUtils.getBoSession();
-
         OrderPO orderPO = orderMapper.selectOne(
                 new QueryWrapper<OrderPO>()
                         .eq("order_no", orderNo)

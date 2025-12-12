@@ -47,8 +47,8 @@ public class CommentController {
     private static final int COMMENT_IMAGE_EXPIRY_SECONDS = 7200; // 2小时
 
     @PostMapping("/image/upload")
-    @Operation(summary = "上传评论图片", description = "上传评论图片，返回临时文件ID（2小时有效）")
-    public R<String> uploadCommentImage(
+    @Operation(summary = "上传评论图片", description = "上传评论图片，返回文件信息（临时文件，2小时有效）")
+    public R<FileItemVO> uploadCommentImage(
             @Parameter(description = "图片文件") @RequestParam("file") MultipartFile file) {
         // 校验文件是否为空
         if (file == null || file.isEmpty()) {
@@ -69,11 +69,11 @@ public class CommentController {
                 COMMENT_IMAGE_EXPIRY_SECONDS // 2小时过期
         );
 
-        if (uploadResult == null || uploadResult.getData() == null) {
-            throw new ServiceException(BasicErrorCode.SYSTEM_ERROR, "文件上传失败");
+        if (!BasicErrorCode.SUCCESS.getCode().equals(uploadResult.getCode())) {
+            throw new ServiceException(uploadResult.getCode(), uploadResult.getMessage());
         }
 
-        return R.success(uploadResult.getData().getId());
+        return R.success(uploadResult.getData());
     }
 
     @PostMapping
