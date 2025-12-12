@@ -1,16 +1,23 @@
 package com.dobbinsoft.gus.distribution.config;
 
-import com.dobbinsoft.gus.common.model.constant.HeaderConstants;
-import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
-import com.dobbinsoft.gus.common.utils.context.bo.RequestProperty;
-import feign.RequestInterceptor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Optional;
+
+import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.cloud.openfeign.support.JsonFormWriter;
+import org.springframework.cloud.openfeign.support.SpringEncoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Optional;
+import com.dobbinsoft.gus.common.model.constant.HeaderConstants;
+import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
+import com.dobbinsoft.gus.common.utils.context.bo.RequestProperty;
+
+import feign.RequestInterceptor;
+import feign.codec.Encoder;
+import feign.form.spring.SpringFormEncoder;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Configuration
@@ -52,6 +59,15 @@ public class OpenFeignConfig {
     @Bean
     public JsonFormWriter jsonFormWriter() {
         return new JsonFormWriter();
+    }
+
+    /**
+     * 配置 Feign 编码器，支持 multipart/form-data 文件上传
+     * 使用 Spring Cloud OpenFeign 内置的 SpringFormEncoder 来处理 MultipartFile 类型的参数
+     */
+    @Bean
+    public Encoder feignFormEncoder(ObjectFactory<HttpMessageConverters> messageConverters) {
+        return new SpringFormEncoder(new SpringEncoder(messageConverters));
     }
 
 }

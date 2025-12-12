@@ -2,6 +2,7 @@ package com.dobbinsoft.gus.distribution.controller.fo;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -61,12 +62,17 @@ public class CommentController {
             throw new ServiceException(BasicErrorCode.PARAMERROR, "只能上传图片文件（支持 jpg、png、gif、webp、bmp 格式）");
         }
 
+        // 生成带UUID的文件名，防止重复，保留后缀
+        String originalFilename = file.getOriginalFilename();
+        String customFileName = generateFileNameWithUuid(originalFilename);
+
         // 上传文件到文件服务，设置为临时文件，2小时后过期
         R<FileItemVO> uploadResult = fileFeignClient.uploadFile(
                 file,
-                true, // 私有文件
+                false, // 私有文件
                 "comment", // 文件夹
-                COMMENT_IMAGE_EXPIRY_SECONDS // 2小时过期
+                COMMENT_IMAGE_EXPIRY_SECONDS, // 2小时过期
+                customFileName // 自定义文件名（带UUID）
         );
 
         if (!BasicErrorCode.SUCCESS.getCode().equals(uploadResult.getCode())) {
@@ -112,5 +118,34 @@ public class CommentController {
         }
         PageResult<CommentVO> page = commentService.getCommentsByProduct(smc, sku, pageNum, pageSize);
         return R.success(page);
+    }
+
+    /**
+     * 生成带UUID的文件名，防止重复
+     * 格式：原文件名（不含后缀）_UUID.后缀
+     * 例如：image.jpg -> image_550e8400-e29b-41d4-a716-446655440000.jpg
+     *
+     * @param originalFilename 原始文件名
+     * @return 带UUID的文件名
+     */
+    private String generateFileNameWithUuid(String originalFilename) {
+        if (StringUtils.isBlank(originalFilename)) {
+            return UUID.randomUUID().toString();
+        }
+
+        // 查找最后一个点号的位置（文件后缀）
+        int lastDotIndex = originalFilename.lastIndexOf('.');
+        
+        if (lastDotIndex == -1) {
+            // 没有后缀，直接添加UUID
+            return originalFilename + "_" + UUID.randomUUID().toString();
+        }
+
+        // 分离文件名和后缀
+        String nameWithoutExt = originalFilename.substring(0, lastDotIndex);
+        String extension = originalFilename.substring(lastDotIndex);
+
+        // 拼接：原文件名_UUID.后缀
+        return nameWithoutExt + "_" + UUID.randomUUID().toString() + extension;
     }
 }
