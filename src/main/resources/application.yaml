@@ -45,4 +45,6 @@ gus:
     refresh-expires-in: ${DISTRIBUTION_REFRESH_TOKEN_EXPIRE:2592000}
     private-key: ${DISTRIBUTION_TOKEN_PRIVATE_KEY}
     iss: ${DISTRIBUTION_TOKEN_ISS:${spring.application.name}}
+    erp:
+      jdy-api-url: ${ERP_JDY_API_URL:https://api.kingdee.com}
 
