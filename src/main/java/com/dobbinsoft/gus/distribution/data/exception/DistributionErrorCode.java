@@ -1,6 +1,7 @@
 package com.dobbinsoft.gus.distribution.data.exception;
 
 import com.dobbinsoft.gus.web.exception.ErrorCode;
+
 import lombok.Getter;
 
 @Getter
@@ -46,6 +47,9 @@ public enum DistributionErrorCode implements ErrorCode {
     // System related error codes
     ACCESS_DENIED("7001", "access denied"),
     STOCK_ALREADY_EXISTS("7002", "stock record already exists"),
+
+    // ERP Provider related error codes
+    ERP_PROVIDER_ALREADY_EXISTS("8001", "ERP提供商已存在，只允许创建一个"),
 
     //
     ;
