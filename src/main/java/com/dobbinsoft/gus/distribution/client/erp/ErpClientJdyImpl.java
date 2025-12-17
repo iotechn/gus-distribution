@@ -26,18 +26,20 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.web.client.RestTemplate;
 
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.dobbinsoft.gus.common.utils.context.GenericRequestContextHolder;
 import com.dobbinsoft.gus.common.utils.json.JsonUtil;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpCategory;
+import com.dobbinsoft.gus.distribution.client.erp.model.ErpEvent;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpItem;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpItemAttr;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpItemMapping;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpStock;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpUnitGroup;
+import com.dobbinsoft.gus.distribution.client.erp.model.jdy.JdyAppAuthorize;
 import com.dobbinsoft.gus.distribution.client.erp.model.jdy.JdyErpAccessTokenData;
 import com.dobbinsoft.gus.distribution.client.erp.model.jdy.JdyErpApiResponse;
 import com.dobbinsoft.gus.distribution.client.erp.model.jdy.JdyErpCategoryItem;
@@ -490,8 +492,127 @@ public class ErpClientJdyImpl implements ErpClient {
 
     @Override
     public boolean validateCallback(HttpServletRequest request, String body, ErpProviderPO erpProviderPO) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'validateCallback'");
+        JsonNode jsonNode = JsonUtil.convertToObject(body, JsonNode.class);
+        JsonNode bizTypeNode = jsonNode.get("bizType");
+        if (bizTypeNode == null) {
+            return false;
+        }
+        String bizType = bizTypeNode.asText();
+        if (StringUtils.isEmpty(bizType)) {
+            return false;
+        }
+        if (bizType.equals("app_authorize")) {
+            // URL配置
+            JdyAppAuthorize jdyAppAuthorize = JsonUtil.convertToObject(body, JdyAppAuthorize.class);
+            List<JdyAppAuthorize.DataDTO> data = jdyAppAuthorize.getData();
+            if (CollectionUtils.isNotEmpty(data)) {
+                for (JdyAppAuthorize.DataDTO datum : data) {
+                    String config = erpProviderPO.getConfig();
+                    JdyErpConfigModel jdyErpConfigModel = JsonUtil.convertToObject(config, JdyErpConfigModel.class);
+                    jdyErpConfigModel.setKey(datum.getAppKey());
+                    jdyErpConfigModel.setSecret(datum.getAppSecret());
+                    erpProviderPO.setConfig(JsonUtil.convertToString(jdyErpConfigModel));
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
+    @Override
+    public List<ErpEvent> convertToEvents(HttpServletRequest request, String body) {
+        List<ErpEvent> events = new ArrayList<>();
+        if (StringUtils.isBlank(body)) {
+            return events;
+        }
+
+        JsonNode root = JsonUtil.convertToObject(body, JsonNode.class);
+        if (root == null || !root.isObject()) {
+            return events;
+        }
+
+        String bizType = getText(root, "bizType");
+        String operation = getText(root, "operation");
+        Long timestamp = root.has("timestamp") && root.get("timestamp").canConvertToLong() ? root.get("timestamp").asLong() : null;
+
+        // JDY 授权事件（app_authorize）已经在 validateCallback 中处理，这里不再转业务事件
+        if ("app_authorize".equals(bizType)) {
+            return events;
+        }
+
+        // JDY 库存变更：inv_inventory_entity
+        if ("inv_inventory_entity".equals(bizType)) {
+            JsonNode dataNode = root.get("data");
+            if (dataNode != null && dataNode.isObject()) {
+                String productNumber = getText(dataNode, "productNumber");
+                String locationNumber = getText(dataNode, "locationNumber");
+                BigDecimal qty = null;
+                if (dataNode.has("qty") && dataNode.get("qty").isNumber()) {
+                    qty = dataNode.get("qty").decimalValue();
+                }
+                ErpEvent event = new ErpEvent();
+                event.setSource(ErpEvent.Source.JDY);
+                event.setType(ErpEvent.Type.INVENTORY_CHANGED);
+                event.setBizType(bizType);
+                event.setOperation(operation);
+                event.setOccurredAt(timestamp);
+
+                ErpEvent.InventoryChangedPayload payload = new ErpEvent.InventoryChangedPayload();
+                payload.setSku(productNumber);
+                payload.setLocationCode(locationNumber);
+                payload.setQuantity(qty);
+                event.setInventoryChanged(payload);
+
+                // JDY 库存回调中，租户一般通过 accountId 字段体现
+                String accountId = getText(root, "accountId");
+                if (StringUtils.isNotBlank(accountId)) {
+                    event.setErpTenantId(accountId);
+                }
+
+                events.add(event);
+            }
+            return events;
+        }
+
+        // JDY 销货单 / 出库单：sal_bill_outbound
+        if ("sal_bill_outbound".equals(bizType)) {
+            JsonNode dataNode = root.get("data");
+            ErpEvent event = new ErpEvent();
+            event.setSource(ErpEvent.Source.JDY);
+            event.setType(ErpEvent.Type.SALE_OUTBOUND_CREATED);
+            event.setBizType(bizType);
+            event.setOperation(operation);
+            event.setOccurredAt(timestamp);
+
+            // 旧系统中，这里通过 data.id 去 JDY 查询销货单，再根据 sourceOrder 做商城发货。
+            ErpEvent.SaleOutboundCreatedPayload payload = new ErpEvent.SaleOutboundCreatedPayload();
+            if (dataNode != null && dataNode.has("id")) {
+                payload.setErpDocumentId(dataNode.get("id").asText());
+            }
+            event.setSaleOutboundCreated(payload);
+
+            // JDY 的租户/账套标识字段（旧系统中为 tentantId）
+            String tenantId = getText(root, "tentantId");
+            if (StringUtils.isNotBlank(tenantId)) {
+                event.setErpTenantId(tenantId);
+            }
+
+            events.add(event);
+            return events;
+        }
+
+        // 其它业务类型暂不关心，返回空列表
+        return events;
+    }
+
+    /**
+     * 安全获取 JsonNode 中的文本字段
+     */
+    private String getText(JsonNode node, String fieldName) {
+        if (node == null || !node.has(fieldName) || node.get(fieldName).isNull()) {
+            return null;
+        }
+        JsonNode value = node.get(fieldName);
+        return value.isTextual() ? value.asText() : value.toString();
+    }
 }
