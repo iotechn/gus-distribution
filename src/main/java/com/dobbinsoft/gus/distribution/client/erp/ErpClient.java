@@ -3,6 +3,7 @@ package com.dobbinsoft.gus.distribution.client.erp;
 import java.util.List;
 
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpCategory;
+import com.dobbinsoft.gus.distribution.client.erp.model.ErpEvent;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpItem;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpItemAttr;
 import com.dobbinsoft.gus.distribution.client.erp.model.ErpItemMapping;
@@ -68,5 +69,13 @@ public interface ErpClient {
      * @return
      */
     boolean validateCallback(HttpServletRequest request, String body, ErpProviderPO erpProviderPO);
+
+    /**
+     * 将请求转化为标准的ERP事件
+     * @param request
+     * @param body
+     * @return
+     */
+    List<ErpEvent> convertToEvents(HttpServletRequest request, String body);
 
 }
