@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.dobbinsoft.gus.common.utils.json.JsonUtil;
 import com.dobbinsoft.gus.distribution.client.erp.model.jdy.JdyErpConfigModel;
-import com.dobbinsoft.gus.distribution.data.enums.ErpProvider;
 import com.dobbinsoft.gus.distribution.data.handler.AesTypeHandler;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,7 +17,7 @@ import lombok.Setter;
 public class ErpProviderPO extends BasePO {
 
     @Schema(description = "ERP提供商类型")
-    private ErpProvider type;
+    private String type;
 
     @Schema(description = "配置信息，需要AES加密")
     @TableField(typeHandler = AesTypeHandler.class)

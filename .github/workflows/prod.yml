@@ -1,0 +1,101 @@
+name: Deploy to Production
+
+on:
+  # 通过 GitHub UI 的 “Use workflow from” 选择 Tag 来触发
+  # 例如选择 Tag: v1.0.0，则本次部署就使用 v1.0.0 对应的 commit SHA 作为镜像 tag
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.cn-beijing.aliyuncs.com
+  IMAGE_NAME: dobbinsoft/${{ github.event.repository.name }}
+  NAMESPACE: gus
+
+jobs:
+  deploy-to-prod:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取所有历史记录，以便在 tag 场景下做验证（虽然正常情况下用不到）
+
+      - name: Get commit SHA from workflow ref (tag)
+        id: get_sha
+        run: |
+          # 当前 workflow 的 ref，例如：
+          #   refs/tags/v1.0.0
+          #   refs/heads/main
+          REF="${GITHUB_REF}"
+          echo "当前 workflow ref: $REF"
+
+          # 只允许从 tag 触发部署，防止误从分支执行
+          case "$REF" in
+            refs/tags/*)
+              TAG="${REF#refs/tags/}"
+              ;;
+            *)
+              echo "❌ 错误: 仅允许从 Tag 触发生产环境部署（当前 ref: $REF）"
+              exit 1
+              ;;
+          esac
+
+          echo "选择的版本标签: $TAG"
+
+          # github.sha 在 tag 场景下就是该 tag 对应的 commit SHA
+          COMMIT_SHA="${GITHUB_SHA}"
+
+          # 双保险：如果需要，也可以通过 git 再反查一遍
+          # COMMIT_SHA=$(git rev-list -n 1 "$TAG" 2>/dev/null || echo "")
+          
+          if [ -z "$COMMIT_SHA" ]; then
+            echo "❌ 错误: 无法找到标签 $TAG 对应的 commit"
+            exit 1
+          fi
+          
+          echo "标签 $TAG 对应的 commit SHA: $COMMIT_SHA"
+          echo "sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          
+          # 验证镜像是否存在（可选，如果需要的话可以添加镜像仓库检查）
+
+      - name: Set up Kubernetes Context
+        uses: azure/k8s-set-context@v3
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PROD }}
+          
+      - name: Replace variables in deployment.yaml
+        run: |
+          COMMIT_SHA=${{ steps.get_sha.outputs.sha }}
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${COMMIT_SHA}"
+          
+          echo "部署镜像: $IMAGE"
+          echo "命名空间: ${{ env.NAMESPACE }}"
+          echo "应用名称: ${{ github.event.repository.name }}"
+          
+          # 替换部署文件中的变量
+          sed -i "s/\${NAMESPACE}/${{ env.NAMESPACE }}/g" k8s/deploymen-prod.yaml
+          sed -i "s/\${APP_NAME}/${{ github.event.repository.name }}/g" k8s/deploymen-prod.yaml
+          sed -i "s|\${IMAGE}|${IMAGE}|g" k8s/deploymen-prod.yaml
+          
+      - name: Deploy Application to Kubernetes
+        uses: azure/k8s-deploy@v1
+        with:
+          manifests: |
+            k8s/deploymen-prod.yaml
+          images: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_sha.outputs.sha }}
+          namespace: ${{ env.NAMESPACE }}
+          args: --validate=false
+          action: deploy
+          strategy: none
+
+      - name: Deployment Summary
+        run: |
+          echo "✅ 部署完成！"
+          echo "版本标签: ${{ steps.get_sha.outputs.tag }}"
+          echo "Commit SHA: ${{ steps.get_sha.outputs.sha }}"
+          echo "镜像: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.get_sha.outputs.sha }}"
+          echo "命名空间: ${{ env.NAMESPACE }}"
+          echo "应用名称: ${{ github.event.repository.name }}"
+

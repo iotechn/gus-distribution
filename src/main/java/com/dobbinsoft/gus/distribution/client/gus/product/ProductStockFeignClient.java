@@ -1,6 +1,7 @@
 package com.dobbinsoft.gus.distribution.client.gus.product;
 
 import com.dobbinsoft.gus.common.model.vo.PageResult;
+import com.dobbinsoft.gus.distribution.client.erp.model.ErpStock;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.BatchStockAdjustDTO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ItemStockVO;
 import com.dobbinsoft.gus.distribution.client.gus.product.model.ListStockVO;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import java.util.List;
 
 @FeignClient(name = "gus-product-stock", url = "${gus.distribution.product-url}", path = "/api/stock")
 public interface ProductStockFeignClient {
@@ -25,5 +28,8 @@ public interface ProductStockFeignClient {
 
     @PostMapping("/adjust")
     R<Void> adjustStock(@Valid @RequestBody BatchStockAdjustDTO batchStockAdjustDTO);
+
+    @PostMapping("/sync")
+    R<Void> syncStocks(@Valid @RequestBody List<ErpStock> stocks);
 
 }
