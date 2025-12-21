@@ -7,17 +7,33 @@ import lombok.Setter;
 @Setter
 public class JdyErpConfigModel {
     
+    /**
+     * key 回调中设置，backoffice不可编辑
+     */
     private String key;
 
+    /**
+     * secret 回调中设置，backoffice不可编辑
+     */
     private String secret;
 
-    private String clientSecret;
-
+    /**
+     * Client Id， backoffice中设置
+     */
     private String clientId;
 
+    /**
+     * Client Secret， backoffice中设置
+     */
+    private String clientSecret;
+
+    /**
+     * 帐套ID， backoffice中设置
+     */
     private String accountId;
 
-    private String provider;
-
+    /**
+     * ERP客户编码：下单时如果用户没有设置客户编码，则默认使用这个
+     */
     private String customerCode;
 }

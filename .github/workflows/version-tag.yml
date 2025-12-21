@@ -1,0 +1,72 @@
+name: Create Version Tag
+
+on:
+  workflow_dispatch:  # 仅手动触发
+
+jobs:
+  create-version-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 需要写入权限来创建标签
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取所有历史记录以便查找标签
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          # 获取最新的版本标签（格式：v*.*.*）
+          LATEST_TAG=$(git describe --tags --match "v*.*.*" --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            # 如果没有找到标签，从 v1.0.0 开始
+            NEW_VERSION="v1.0.0"
+            echo "没有找到现有标签，从 v1.0.0 开始"
+          else
+            echo "最新标签: $LATEST_TAG"
+            # 移除 'v' 前缀
+            VERSION=${LATEST_TAG#v}
+            # 分割版本号
+            IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
+            MAJOR=${VERSION_PARTS[0]:-1}
+            MINOR=${VERSION_PARTS[1]:-0}
+            PATCH=${VERSION_PARTS[2]:-0}
+            
+            # 自增 patch 版本
+            PATCH=$((PATCH + 1))
+            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "新版本: $NEW_VERSION"
+          fi
+          
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          TAG=${{ steps.get_tag.outputs.tag }}
+          echo "创建标签: $TAG"
+          
+          # 创建标签
+          git tag -a "$TAG" -m "创建版本标签: $TAG"
+          
+          # 配置远程 URL 使用 token 进行认证
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          
+          # 推送标签到远程仓库
+          git push origin "$TAG"
+          
+          echo "标签 $TAG 已创建并推送"
+
+      - name: Output version
+        run: |
+          echo "✅ 新版本标签已创建: ${{ steps.get_tag.outputs.tag }}"
+

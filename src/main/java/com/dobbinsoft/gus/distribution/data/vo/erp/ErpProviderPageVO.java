@@ -2,8 +2,6 @@ package com.dobbinsoft.gus.distribution.data.vo.erp;
 
 import java.time.ZonedDateTime;
 
-import com.dobbinsoft.gus.distribution.data.enums.ErpProvider;
-
 import lombok.Getter;
 import lombok.Setter;
 
@@ -13,7 +11,7 @@ public class ErpProviderPageVO {
 
     private String id;
 
-    private ErpProvider type;
+    private String type;
 
     private String remark;
 
